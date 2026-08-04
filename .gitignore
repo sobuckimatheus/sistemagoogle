@@ -1,18 +1,32 @@
-# Segredos — nunca versionar
-.env
-.env.*
-!.env.example
+# Dependências
+/node_modules
+/.pnp
+.pnp.*
 
-# Node / Next
-node_modules/
-.next/
-out/
-dist/
-*.tsbuildinfo
+# Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# Testes
+/coverage
 
 # Prisma
 prisma/generated/
 
+# Deploy
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+
+# Segredos — a exceção do .env.example precisa vir DEPOIS da regra .env*,
+# senão ela não tem efeito (no gitignore, a última regra que casa é a que vale).
+.env*
+!.env.example
+
 # Sistema
 .DS_Store
+*.pem
 *.log

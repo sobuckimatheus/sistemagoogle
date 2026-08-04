@@ -7,13 +7,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// No Prisma 7 as URLs saem do schema:
+//   migrations  -> prisma.config.ts (conexão direta, 5432)
+//   runtime     -> driver adapter em src/lib/prisma.ts (pooler, 6543)
 datasource db {
-  provider  = "postgresql"
-  // Runtime: transaction pooler (6543). Uma conexão por invocação serverless
-  // esgotaria o Postgres sem ele.
-  url       = env("DATABASE_URL")
-  // Migrations: conexão direta (5432). O pooler de transação quebra DDL.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 // ── Conta / usuários ────────────────────────────────────────────────────────

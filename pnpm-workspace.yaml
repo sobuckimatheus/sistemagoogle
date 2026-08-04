@@ -1,0 +1,9 @@
+allowBuilds:
+  # Prisma precisa do postinstall para baixar os query engines nativos.
+  '@prisma/engines': true
+  prisma: true
+  # Compilam binários próprios: esbuild no tooling, sharp na otimização de
+  # imagem do Next, unrs-resolver no ESLint.
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
