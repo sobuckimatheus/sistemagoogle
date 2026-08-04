@@ -1,0 +1,481 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Painel GBP — schema inicial (V1)
+// Ver PRD-gbp-dashboard.md para o racional de cada bloco.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Conta / usuários ────────────────────────────────────────────────────────
+
+model Account {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String // nome da agência ou do negócio dono da conta
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  members           AccountMember[]
+  googleConnections GoogleConnection[]
+  businesses        Business[]
+  marketScans       MarketScan[]
+  subscription      Subscription?
+
+  @@map("accounts")
+}
+
+enum AccountRole {
+  OWNER
+  MEMBER
+}
+
+model AccountMember {
+  id        String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId String
+  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      AccountRole @default(OWNER)
+  createdAt DateTime    @default(now())
+
+  @@unique([accountId, userId])
+  @@index([userId])
+  @@map("account_members")
+}
+
+model User {
+  id        String   @id // id do Supabase Auth
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  memberships       AccountMember[]
+  googleConnections GoogleConnection[] // quem de fato clicou "conectar" (auditoria)
+
+  @@map("users")
+}
+
+// ── Conexão com o Google ───────────────────────────────────────────────────
+
+enum GoogleConnectionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model GoogleConnection {
+  id                String                  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId         String
+  account           Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  connectedByUserId String
+  connectedByUser   User                    @relation(fields: [connectedByUserId], references: [id])
+  googleAccountEmail String?
+  accessToken       String?                 @db.Text // criptografado na aplicação
+  refreshToken      String?                 @db.Text // criptografado na aplicação
+  tokenExpiry       DateTime?
+  scopes            String?
+  status            GoogleConnectionStatus  @default(ACTIVE)
+  createdAt         DateTime                @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  businesses Business[]
+
+  @@index([accountId])
+  @@map("google_connections")
+}
+
+// ── Negócio (Perfil de Empresa rastreado) ──────────────────────────────────
+
+enum BusinessStatus {
+  ACTIVE
+  PAUSED
+  DISCONNECTED
+}
+
+model Business {
+  id                 String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId          String
+  account            Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  googleConnectionId String
+  googleConnection   GoogleConnection @relation(fields: [googleConnectionId], references: [id])
+
+  // identificação no Google
+  gbpAccountName  String? // resource name da conta GBP (accounts/123)
+  locationName    String  @unique // resource name do local (locations/456)
+  placeId         String?
+
+  // dados do perfil (cache — origem de verdade é o Google; sincronizado periodicamente)
+  title               String
+  primaryCategory     String?
+  primaryCategoryGcid String? // id interno da categoria (para editar/comparar)
+  additionalCategories String[]
+  description         String?  @db.Text
+  phone               String?
+  website              String?
+  addressLine1        String?
+  addressLine2        String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  countryCode          String   @default("BR")
+  lat                  Float?
+  lng                  Float?
+
+  // configuração usada nas métricas estimadas (5.9 do PRD)
+  ticketMedio          Float?
+  taxaConversaoManual  Float? // 0-1; se nulo, usa SegmentBenchmark pela categoria
+
+  status       BusinessStatus @default(ACTIVE)
+  lastSyncedAt DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  performanceDaily PerformanceDaily[]
+  reviews          Review[]
+  auditSnapshots   AuditSnapshot[]
+  competitors      Competitor[]
+  keywords         Keyword[]
+  posts            Post[]
+  checklistItems   ChecklistItem[]
+  alerts           Alert[]
+  reports          Report[]
+
+  @@index([accountId])
+  @@map("businesses")
+}
+
+// ── Desempenho (série diária — Performance API) ────────────────────────────
+
+model PerformanceDaily {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+
+  viewsSearch      Int @default(0)
+  viewsMaps        Int @default(0)
+  calls            Int @default(0)
+  websiteClicks    Int @default(0)
+  directionRequests Int @default(0)
+  conversations    Int @default(0)
+  bookings         Int @default(0)
+
+  syncedAt DateTime @default(now())
+
+  @@unique([businessId, date])
+  @@index([businessId, date])
+  @@map("performance_daily")
+}
+
+// ── Avaliações ──────────────────────────────────────────────────────────────
+
+model Review {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  gbpReviewId  String // id da avaliação na API v4
+  reviewerName String?
+  reviewerPhotoUrl String?
+  starRating   Int?
+  comment      String?  @db.Text
+
+  replyText    String?   @db.Text // resposta efetivamente publicada
+  repliedAt    DateTime?
+  aiDraftReply String?   @db.Text // último rascunho gerado por IA (antes de publicar)
+
+  createTime DateTime?
+  updateTime DateTime?
+  syncedAt   DateTime  @default(now())
+
+  @@unique([businessId, gbpReviewId])
+  @@index([businessId])
+  @@map("reviews")
+}
+
+// ── Auditoria (nota + checklist, histórico) ────────────────────────────────
+
+model AuditSnapshot {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  score      Int // 0-100
+  checksJson Json // array de { label, status, dica } no momento da auditoria
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("audit_snapshots")
+}
+
+// ── Concorrentes ────────────────────────────────────────────────────────────
+
+model Competitor {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  placeId    String?
+  name       String
+  category   String?
+  address    String?
+  createdAt  DateTime @default(now())
+
+  snapshots CompetitorSnapshot[]
+
+  @@index([businessId])
+  @@map("competitors")
+}
+
+model CompetitorSnapshot {
+  id           String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  competitorId String
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  rating       Float?
+  reviewCount  Int?
+  hasWebsite   Boolean?
+  hasHours     Boolean?
+  capturedAt   DateTime   @default(now())
+
+  @@index([competitorId, capturedAt])
+  @@map("competitor_snapshots")
+}
+
+// ── Palavras-chave e Rank Tracking ──────────────────────────────────────────
+
+model Keyword {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  term       String
+  volume     Int? // buscas/mês (DataForSEO), cache mensal
+  volumeSyncedAt DateTime?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  rankChecks RankCheck[]
+
+  @@unique([businessId, term])
+  @@index([businessId])
+  @@map("keywords")
+}
+
+enum RankCheckType {
+  SINGLE
+  GRID
+}
+
+model RankCheck {
+  id          String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  keywordId   String
+  keyword     Keyword       @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  type        RankCheckType
+  gridSize    Int? // 3, 5... (nulo se SINGLE)
+  centerLat   Float
+  centerLng   Float
+  myPosition  Int? // nulo = não apareceu no top consultado
+  avgPosition Float?
+  coverage    Int? // em quantos pontos apareceu (GRID) — 1 para SINGLE
+  totalPoints Int
+  createdAt   DateTime      @default(now())
+
+  points RankCheckPoint[]
+
+  @@index([keywordId, createdAt])
+  @@map("rank_checks")
+}
+
+model RankCheckPoint {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  rankCheckId String
+  rankCheck   RankCheck @relation(fields: [rankCheckId], references: [id], onDelete: Cascade)
+  lat         Float
+  lng         Float
+  position    Int? // posição do negócio rastreado nesse ponto (nulo = fora do top)
+  resultsJson Json // ranking completo retornado pelo SerpApi nesse ponto (top N)
+
+  @@index([rankCheckId])
+  @@map("rank_check_points")
+}
+
+// Análise ad-hoc de QUALQUER negócio (não precisa ser um Business rastreado) —
+// usado para prospecção/CRM pela agência. Ver seção 9 do PRD.
+model MarketScan {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  queryName    String // nome digitado na busca
+  businessName String // negócio selecionado
+  placeId      String?
+  keyword      String
+  position     Int?
+  resultJson   Json // ranking completo retornado
+  createdAt    DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@map("market_scans")
+}
+
+// ── Postagens (Google Posts) ────────────────────────────────────────────────
+
+enum PostType {
+  STANDARD
+  EVENT
+  OFFER
+}
+
+enum PostState {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+model Post {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  gbpPostId    String? // preenchido após publicar
+  summary      String    @db.Text
+  postType     PostType  @default(STANDARD)
+  state        PostState @default(DRAFT)
+  mediaUrl     String?
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([businessId, state])
+  @@map("posts")
+}
+
+// ── Checklist e Alertas ──────────────────────────────────────────────────────
+
+enum ChecklistStatus {
+  OPEN
+  DONE
+  DISMISSED
+}
+
+model ChecklistItem {
+  id          String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId  String
+  business    Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  area        String // ex: Avaliações, Categorias, Descrição, Fotos, Postagens
+  priority    String // alta | media | baixa
+  title       String
+  description String?         @db.Text
+  status      ChecklistStatus @default(OPEN)
+  generatedAt DateTime        @default(now())
+  resolvedAt  DateTime?
+
+  @@index([businessId, status])
+  @@map("checklist_items")
+}
+
+enum AlertType {
+  NEW_REVIEW
+  LOW_RATING_REVIEW
+  RATING_DROP
+  NO_ACTIVITY
+  SYNC_FAILED
+  RANK_DROP
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model Alert {
+  id         String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type       AlertType
+  severity   AlertSeverity @default(INFO)
+  message    String
+  metaJson   Json?
+  readAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([businessId, readAt])
+  @@map("alerts")
+}
+
+// ── Benchmarks para métricas estimadas ───────────────────────────────────────
+
+model SegmentBenchmark {
+  id                String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  category          String   @unique // ex: "Clínica de estética", "Restaurante"
+  avgConversionRate Float // 0-1, referência do segmento (5.9 do PRD)
+  avgTicket         Float // R$, fallback se o negócio não configurar o próprio
+  source            String? // de onde veio o número (nota de transparência)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("segment_benchmarks")
+}
+
+// ── Relatórios ────────────────────────────────────────────────────────────
+
+model Report {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  format      String // pdf | csv
+  fileUrl     String
+  generatedAt DateTime @default(now())
+
+  @@index([businessId])
+  @@map("reports")
+}
+
+// ── Billing ──────────────────────────────────────────────────────────────
+
+enum PlanTier {
+  FREE
+  PRO
+  AGENCY
+}
+
+model Plan {
+  id            String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  tier          PlanTier @unique
+  name          String
+  priceCents    Int
+  maxBusinesses Int
+  maxKeywords   Int
+  stripePriceId String?
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Subscription {
+  id                   String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId            String             @unique
+  account              Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(TRIALING)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("subscriptions")
+}

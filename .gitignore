@@ -1,0 +1,18 @@
+# Segredos — nunca versionar
+.env
+.env.*
+!.env.example
+
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Prisma
+prisma/generated/
+
+# Sistema
+.DS_Store
+*.log
