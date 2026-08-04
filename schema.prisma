@@ -8,8 +8,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime: transaction pooler (6543). Uma conexão por invocação serverless
+  // esgotaria o Postgres sem ele.
+  url       = env("DATABASE_URL")
+  // Migrations: conexão direta (5432). O pooler de transação quebra DDL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Conta / usuários ────────────────────────────────────────────────────────
