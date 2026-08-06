@@ -45,13 +45,6 @@ export default async function DashboardNegocio({
               .join(" · ") || "sem categoria definida"}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-        <Link
-          href={`/negocio/${id}/avaliacoes`}
-          className="text-sm underline text-neutral-600 dark:text-neutral-400"
-        >
-          Avaliações →
-        </Link>
         <nav className="flex gap-1 rounded-md border border-neutral-200 p-1 text-sm dark:border-neutral-800">
           {PERIODOS.map((p) => (
             <Link
@@ -67,7 +60,6 @@ export default async function DashboardNegocio({
             </Link>
           ))}
         </nav>
-        </div>
       </header>
 
       {semDados && (
