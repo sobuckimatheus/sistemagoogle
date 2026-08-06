@@ -49,6 +49,10 @@ export default async function Home() {
           <h1 className="text-2xl font-semibold tracking-tight">Painel GBP</h1>
           <p className="text-sm text-neutral-500">{user.email}</p>
         </div>
+        <div className="flex items-center gap-3">
+        <Link href="/mercado" className="text-sm underline text-neutral-600 dark:text-neutral-400">
+          Análise de Mercado
+        </Link>
         <form action={sair}>
           <button
             type="submit"
@@ -57,6 +61,7 @@ export default async function Home() {
             Sair
           </button>
         </form>
+        </div>
       </header>
 
       <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">

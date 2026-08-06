@@ -1,6 +1,6 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { provisionarUsuario } from "@/lib/auth/provisionar";
 import { prisma } from "@/lib/prisma";
@@ -45,7 +45,6 @@ export async function exigirNegocioDaConta(
   });
 
   if (!negocio) {
-    const { notFound } = await import("next/navigation");
     notFound();
   }
 
