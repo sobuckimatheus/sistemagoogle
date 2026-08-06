@@ -1,7 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-import { serverEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/env/server";
 
 /**
  * Prisma Client — instância única por processo.

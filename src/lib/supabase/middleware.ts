@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { clientEnv } from "@/lib/env";
+import { clientEnv } from "@/lib/env/client";
 
 /** Rotas acessíveis sem sessão. */
 const ROTAS_PUBLICAS = ["/login", "/cadastro", "/recuperar-senha", "/auth"];

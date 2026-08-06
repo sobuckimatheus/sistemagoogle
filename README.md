@@ -19,7 +19,7 @@ pnpm db:generate
 pnpm dev
 ```
 
-O app não sobe sem as variáveis obrigatórias — a validação em `src/lib/env.ts`
+O app não sobe sem as variáveis obrigatórias — a validação em `src/lib/env/`
 falha no boot dizendo exatamente qual está faltando. As integrações que ainda
 não têm credencial (Google, SerpApi, DataForSEO, Anthropic, Stripe) estão como
 opcionais e passam a ser exigidas conforme cada épica avança.
@@ -62,7 +62,7 @@ sql/                  os mesmos SQL aplicados manualmente + verificação
 src/
   app/                rotas (App Router)
   lib/
-    env.ts            validação das variáveis de ambiente
+    env/              validação das variáveis: client.ts e server.ts, separados
     prisma.ts         client singleton com driver adapter
     supabase/         clients de browser, server e middleware
   middleware.ts       renovação de sessão e proteção de rotas
