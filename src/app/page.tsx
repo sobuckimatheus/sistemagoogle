@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { sair } from "@/app/actions/auth";
@@ -78,12 +79,21 @@ export default async function Home() {
         </dl>
       </section>
 
-      <section className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-300 p-5 dark:border-neutral-700">
-        <h2 className="text-sm font-medium">Próximo passo</h2>
+      <section className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-neutral-300 p-5 dark:border-neutral-700">
+        <h2 className="text-sm font-medium">
+          {negocios === 0 ? "Próximo passo" : "Adicionar mais negócios"}
+        </h2>
         <p className="text-sm text-neutral-500">
-          Conectar o Google Meu Negócio. Essa é a épica E2 e depende da
-          aprovação do allowlist das Business Profile APIs — ver TASKS.md.
+          {negocios === 0
+            ? "Conecte o Google Meu Negócio para começar a acompanhar métricas, avaliações e posição no mapa."
+            : "Conecte outra conta Google ou selecione mais locais para rastrear."}
         </p>
+        <Link
+          href="/conectar"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+        >
+          {negocios === 0 ? "Conectar Google Meu Negócio" : "Gerenciar conexões"}
+        </Link>
       </section>
     </main>
   );
