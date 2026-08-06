@@ -4,14 +4,16 @@ import { redirect } from "next/navigation";
 
 import { exigirContaAtiva } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
+import { sincronizarNegocio } from "@/lib/sync/negocio";
 
 export type ResultadoSalvar = { erro: string } | never;
 
 /**
- * Cria um Business por local selecionado, respeitando o limite do plano.
+ * Cria um Business por local selecionado, respeitando o limite do plano, e
+ * dispara o sync inicial de cada um.
  *
- * Não faz o sync inicial aqui: a chamada às APIs do Google leva tempo e não
- * cabe no ciclo de uma Server Action. Isso fica para a E2-08.
+ * O sync roda depois da gravação, e não junto: o negócio precisa existir mesmo
+ * que as APIs do Google estejam bloqueadas por allowlist.
  */
 export async function salvarLocais(
   _estadoAnterior: ResultadoSalvar | null,
@@ -52,6 +54,8 @@ export async function salvarLocais(
     };
   }
 
+  const criados: string[] = [];
+
   for (const bruto of selecionados) {
     const local = JSON.parse(bruto) as {
       name: string;
@@ -67,7 +71,7 @@ export async function salvarLocais(
 
     // locationName é único no schema: se o local já é rastreado por qualquer
     // conta, o upsert evita violar a constraint.
-    await prisma.business.upsert({
+    const negocio = await prisma.business.upsert({
       where: { locationName: local.name },
       update: {},
       create: {
@@ -84,6 +88,20 @@ export async function salvarLocais(
         state: local.estado ?? null,
       },
     });
+
+    criados.push(negocio.id);
+  }
+
+  // Sync inicial: puxa o histórico disponível para o dashboard não abrir
+  // vazio. Cada negócio é isolado — allowlist pendente faz o sync falhar, e
+  // isso não pode impedir o cadastro do negócio, que já está gravado.
+  for (const businessId of criados) {
+    try {
+      await sincronizarNegocio(businessId, { diasDeHistorico: 30 });
+    } catch {
+      // O job diário tenta de novo; o alerta SYNC_FAILED já é criado quando
+      // o problema é de conexão.
+    }
   }
 
   redirect("/");
