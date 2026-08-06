@@ -154,6 +154,16 @@ O caminho crítico é **E0 → E1 → E2 → E3 → E4**. Nada de valor aparece 
 | E5-11 | Gráficos de evolução (desempenho e nota da auditoria) | M | Séries longas renderizam sem travar |
 | E5-12 | Badge de alertas não lidos com link para o módulo | P | Contador zera ao abrir |
 
+**Decisão de produto: rank tracking em grade fica fora do escopo.** Uma grade
+5x5 consome 25 das 100 buscas mensais gratuitas do SerpApi, e a leitura que
+ela entrega não é valorizada pelo cliente na proporção do custo. A Análise de
+Mercado (E7-11) permanece: gasta 1 busca por consulta e serve à prospecção,
+que é o uso comercial de fato.
+
+Consequência no schema: `RankCheck`, `RankCheckPoint` e o enum `RankCheckType`
+ficam sem uso. Não removi as tabelas — elas não atrapalham e a decisão pode
+ser revista se um cliente pedir.
+
 **Risco em E5-04/E5-05:** o PRD marca isso explicitamente como risco de credibilidade. Se a estimativa destoar da realidade do cliente, o produto inteiro perde confiança. Manter o cálculo isolado e testado é o que permite ajustar a fórmula depois sem caçar lógica espalhada pela UI.
 
 ---
@@ -182,11 +192,11 @@ O caminho crítico é **E0 → E1 → E2 → E3 → E4**. Nada de valor aparece 
 | E7-03 | Evolução do concorrente a partir de `CompetitorSnapshot` | M | Gráfico aparece após o segundo snapshot |
 | E7-04 | CRUD de palavras-chave com limite de plano e sugestão por IA | M | Exceder `maxKeywords` leva ao checkout |
 | E7-05 | Exibição de volume com estado "indisponível" quando o DataForSEO falha | P | Ausência de volume não quebra a tela |
-| E7-06 | `[BLOQUEIA]` Rank check SINGLE e GRID gravando `RankCheck` + `RankCheckPoint` | G | Grid 5x5 grava 25 pontos com posição e ranking completo |
-| E7-07 | Mapa de calor da grade + ranking competitivo por posição média e cobertura | G | Visual bate com os dados de `RankCheckPoint` |
-| E7-08 | Guarda de cota do SerpApi antes de disparar grid | M | Cota insuficiente bloqueia com aviso, sem consumir parcialmente |
-| E7-09 | Gráfico de evolução de posição por palavra-chave | M | Série usa `RankCheck.createdAt` |
-| E7-10 | Aviso de produto: rank é sempre relativo ao ponto geográfico | P | Texto presente nas telas de rank |
+| ~~E7-06~~ | ~~Rank check SINGLE e GRID~~ | — | **Fora de escopo** — ver decisão abaixo |
+| ~~E7-07~~ | ~~Mapa de calor da grade~~ | — | **Fora de escopo** |
+| ~~E7-08~~ | ~~Guarda de cota do SerpApi para grid~~ | — | **Fora de escopo** |
+| ~~E7-09~~ | ~~Gráfico de evolução de posição~~ | — | **Fora de escopo** |
+| E7-10 | Aviso de produto: rank é sempre relativo ao ponto geográfico | P | Já presente na Análise de Mercado |
 | E7-11 | Análise de Mercado: busca de qualquer negócio, keyword por IA ou digitada, gravação em `MarketScan` | G | Analisa negócio não rastreado sem exigir OAuth |
 | E7-12 | Histórico de scans da conta para acompanhamento comercial | M | Lista ordenada por data com o resultado preservado |
 

@@ -6,6 +6,7 @@ import { accessTokenValido } from "@/lib/google/conexao";
 import { AllowlistPendenteError } from "@/lib/google/locais";
 import { buscarDesempenhoDiario } from "@/lib/google/performance";
 import { prisma } from "@/lib/prisma";
+import { gerarAlertas } from "@/lib/sync/alertas";
 
 /**
  * Janela de reprocessamento do desempenho.
@@ -21,6 +22,7 @@ export type ResultadoSync = {
   desempenho: { dias: number } | { erro: string };
   avaliacoes: { total: number } | { erro: string };
   auditoria: { score: number } | { erro: string };
+  alertas?: { erro: string };
 };
 
 /**
@@ -38,6 +40,10 @@ export async function sincronizarNegocio(
   const negocio = await prisma.business.findUniqueOrThrow({
     where: { id: businessId },
   });
+
+  // Guardado antes de qualquer escrita: é a fronteira entre "o que já
+  // existia" e "o que chegou agora", e o gerador de alertas depende dela.
+  const referenciaAnterior = negocio.lastSyncedAt;
 
   const token = await accessTokenValido(negocio.googleConnectionId);
 
@@ -127,6 +133,13 @@ export async function sincronizarNegocio(
     resultado.auditoria = { score };
   } catch (erro) {
     resultado.auditoria = { erro: (erro as Error).message };
+  }
+
+  // Alertas por último: comparam o estado recém-gravado com o anterior.
+  try {
+    await gerarAlertas(businessId, referenciaAnterior);
+  } catch (erro) {
+    resultado.alertas = { erro: (erro as Error).message };
   }
 
   await prisma.business.update({
