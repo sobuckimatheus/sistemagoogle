@@ -29,6 +29,7 @@ export default async function NegocioLayout({
     { href: `/negocio/${id}/desempenho`, rotulo: "Desempenho" },
     { href: `/negocio/${id}/perfil`, rotulo: "Perfil" },
     { href: `/negocio/${id}/avaliacoes`, rotulo: "Avaliações" },
+    { href: `/negocio/${id}/concorrentes`, rotulo: "Concorrentes" },
     { href: `/negocio/${id}/palavras-chave`, rotulo: "Palavras-chave" },
     { href: `/negocio/${id}/checklist`, rotulo: "Plano de ação" },
     {
