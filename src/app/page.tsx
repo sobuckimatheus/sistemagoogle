@@ -25,13 +25,22 @@ export default async function Home() {
   // (sem passar por confirmação de e-mail) nunca toca o callback.
   const conta = await provisionarUsuario(user);
 
-  const [assinatura, negocios] = await Promise.all([
+  const [assinatura, listaNegocios] = await Promise.all([
     prisma.subscription.findUnique({
       where: { accountId: conta.id },
       include: { plan: true },
     }),
-    prisma.business.count({ where: { accountId: conta.id } }),
+    prisma.business.findMany({
+      where: { accountId: conta.id },
+      orderBy: { createdAt: "asc" },
+      include: {
+        auditSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
+        _count: { select: { reviews: true, checklistItems: true } },
+      },
+    }),
   ]);
+
+  const negocios = listaNegocios.length;
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-16">
@@ -78,6 +87,40 @@ export default async function Home() {
           </div>
         </dl>
       </section>
+
+      {negocios > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium">Seus negócios</h2>
+          <ul className="flex flex-col gap-2">
+            {listaNegocios.map((n) => (
+              <li key={n.id}>
+                <Link
+                  href={`/negocio/${n.id}`}
+                  className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-4 text-sm hover:border-neutral-400 dark:border-neutral-800"
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">{n.title}</span>
+                    <span className="text-neutral-500">
+                      {[n.primaryCategory, n.city].filter(Boolean).join(" · ") ||
+                        "sem categoria"}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-4 text-neutral-500">
+                    <span className="tabular-nums">
+                      {n.auditSnapshots[0]
+                        ? `${n.auditSnapshots[0].score}/100`
+                        : "sem auditoria"}
+                    </span>
+                    <span className="tabular-nums">
+                      {n._count.reviews} avaliações
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-neutral-300 p-5 dark:border-neutral-700">
         <h2 className="text-sm font-medium">
