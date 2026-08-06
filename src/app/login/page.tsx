@@ -13,7 +13,8 @@ function FormularioLogin() {
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
+  // Erro vindo do callback (link expirado, troca de código falhou) chega na URL.
+  const [erro, setErro] = useState<string | null>(searchParams.get("erro"));
   const [enviando, setEnviando] = useState(false);
 
   async function entrar(evento: React.FormEvent) {
