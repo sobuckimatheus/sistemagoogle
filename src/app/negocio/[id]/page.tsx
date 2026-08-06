@@ -221,6 +221,26 @@ export default async function DashboardNegocio({
         </article>
       </section>
 
+      {d.pendencias[0] && (
+        <section className="flex flex-col gap-2 rounded-lg border-2 border-neutral-900 p-5 dark:border-white">
+          <h2 className="text-xs uppercase tracking-wide text-neutral-500">
+            Maior oportunidade agora
+          </h2>
+          <p className="text-lg font-medium">{d.pendencias[0].title}</p>
+          {d.pendencias[0].description && (
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {d.pendencias[0].description}
+            </p>
+          )}
+          <Link
+            href={`/negocio/${id}/checklist`}
+            className="self-start text-sm underline"
+          >
+            Ver o plano de ação completo
+          </Link>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <h2 className="text-sm font-medium">Principais motivos</h2>
         {d.pendencias.length === 0 ? (
