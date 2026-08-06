@@ -27,7 +27,9 @@ export default async function NegocioLayout({
   const abas = [
     { href: `/negocio/${id}`, rotulo: "Dashboard" },
     { href: `/negocio/${id}/desempenho`, rotulo: "Desempenho" },
+    { href: `/negocio/${id}/perfil`, rotulo: "Perfil" },
     { href: `/negocio/${id}/avaliacoes`, rotulo: "Avaliações" },
+    { href: `/negocio/${id}/palavras-chave`, rotulo: "Palavras-chave" },
     { href: `/negocio/${id}/checklist`, rotulo: "Plano de ação" },
     {
       href: `/negocio/${id}/alertas`,
