@@ -37,15 +37,17 @@ export default async function PerfilPage({
 
       <section className="flex flex-col gap-4 rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
         <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-medium">Parâmetros das estimativas</h2>
+          <h2 className="text-sm font-medium">Ajustes internos</h2>
           <p className="text-sm text-neutral-500">
-            Estes valores ficam só aqui — não são enviados ao Google.
+            Parâmetros das estimativas e tom das gerações de IA. Ficam só aqui
+            — não são enviados ao Google.
           </p>
         </div>
         <FormularioParametros
           businessId={negocio.id}
           ticketMedio={negocio.ticketMedio}
           taxaConversao={negocio.taxaConversaoManual}
+          tomDeVoz={negocio.tomDeVoz}
         />
       </section>
 

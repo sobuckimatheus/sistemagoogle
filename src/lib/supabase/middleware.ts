@@ -3,8 +3,20 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { clientEnv } from "@/lib/env/client";
 
-/** Rotas acessíveis sem sessão. */
-const ROTAS_PUBLICAS = ["/login", "/cadastro", "/recuperar-senha", "/auth"];
+/**
+ * Rotas acessíveis sem sessão.
+ *
+ * `/convite` entra aqui porque o convidado pode ainda não ter conta: a tela
+ * explica o convite e oferece login ou cadastro. O vínculo com a conta só
+ * acontece na ação de aceite, que exige sessão e e-mail correspondente.
+ */
+const ROTAS_PUBLICAS = [
+  "/login",
+  "/cadastro",
+  "/recuperar-senha",
+  "/auth",
+  "/convite",
+];
 
 /**
  * Renova a sessão a cada requisição e protege as rotas privadas.

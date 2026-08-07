@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { accessTokenValido } from "@/lib/google/conexao";
 import { AllowlistPendenteError } from "@/lib/google/locais";
 import { atualizarPerfil, EdicaoRecusadaError } from "@/lib/google/perfil";
@@ -28,6 +29,10 @@ export async function salvarPerfil(
   if (description && description.length > 750) {
     return { erro: "A descrição do Google aceita no máximo 750 caracteres." };
   }
+
+  // Escreve no perfil público via API do Google — recurso pago.
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
 
   try {
     const token = await accessTokenValido(negocio.googleConnectionId);
@@ -78,6 +83,13 @@ export async function salvarParametros(
 
   const ticketBruto = String(formData.get("ticketMedio") ?? "").replace(",", ".");
   const taxaBruta = String(formData.get("taxaConversao") ?? "").replace(",", ".");
+  const tomDeVoz = String(formData.get("tomDeVoz") ?? "").trim() || null;
+
+  // O tom entra no system prompt; texto longo demais dilui as regras que
+  // realmente importam ali e ainda encarece cada geração.
+  if (tomDeVoz && tomDeVoz.length > 500) {
+    return { erro: "Descreva o tom de voz em até 500 caracteres." };
+  }
 
   const ticketMedio = ticketBruto ? Number(ticketBruto) : null;
   const taxaPercentual = taxaBruta ? Number(taxaBruta) : null;
@@ -98,6 +110,7 @@ export async function salvarParametros(
       ticketMedio,
       // O usuário digita percentual; o banco guarda fração de 0 a 1.
       taxaConversaoManual: taxaPercentual === null ? null : taxaPercentual / 100,
+      tomDeVoz,
     },
   });
 

@@ -1,31 +1,21 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { sair } from "@/app/actions/auth";
-import { provisionarUsuario } from "@/lib/auth/provisionar";
+import { SeletorDeConta } from "@/components/seletor-de-conta";
+import { contasDoUsuario, exigirContaAtiva } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // Lê sessão e banco a cada requisição — não faz sentido pré-renderizar.
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Resolve sessão, provisionamento e conta ativa (inclusive a escolhida no
+  // seletor) em um lugar só. O middleware já barra acesso sem sessão; aqui
+  // ainda há o redirect que cobre a corrida com a expiração do token.
+  const { user, conta } = await exigirContaAtiva();
 
-  // O middleware já barra acesso sem sessão; isto cobre a corrida entre
-  // expiração do token e renderização.
-  if (!user) {
-    redirect("/login");
-  }
-
-  // Provisiona também aqui, e não só no callback: quem entra por login direto
-  // (sem passar por confirmação de e-mail) nunca toca o callback.
-  const conta = await provisionarUsuario(user);
-
-  const [assinatura, listaNegocios] = await Promise.all([
+  const [contas, assinatura, listaNegocios, palavrasChave] = await Promise.all([
+    contasDoUsuario(user.id),
     prisma.subscription.findUnique({
       where: { accountId: conta.id },
       include: { plan: true },
@@ -38,6 +28,9 @@ export default async function Home() {
         _count: { select: { reviews: true, checklistItems: true } },
       },
     }),
+    // O limite de palavras-chave é da conta inteira, então a contagem também
+    // é — contar por negócio mostraria um número menor do que o cobrado.
+    prisma.keyword.count({ where: { business: { accountId: conta.id } } }),
   ]);
 
   const negocios = listaNegocios.length;
@@ -50,6 +43,10 @@ export default async function Home() {
           <p className="text-sm text-neutral-500">{user.email}</p>
         </div>
         <div className="flex items-center gap-3">
+        <SeletorDeConta contas={contas} ativa={conta.id} />
+        <Link href="/conta" className="text-sm underline text-neutral-600 dark:text-neutral-400">
+          Conta
+        </Link>
         <Link href="/mercado" className="text-sm underline text-neutral-600 dark:text-neutral-400">
           Análise de Mercado
         </Link>
@@ -88,7 +85,9 @@ export default async function Home() {
           </div>
           <div>
             <dt className="text-neutral-500">Palavras-chave</dt>
-            <dd>0 de {assinatura?.plan.maxKeywords ?? "—"}</dd>
+            <dd className="tabular-nums">
+              {palavrasChave} de {assinatura?.plan.maxKeywords ?? "—"}
+            </dd>
           </div>
         </dl>
       </section>

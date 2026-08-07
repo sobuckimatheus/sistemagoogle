@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { IaIndisponivelError, sugerirPalavrasChave } from "@/lib/ia";
 import { prisma } from "@/lib/prisma";
+import { consumirCota, LIMITES } from "@/lib/rate-limit";
 
 export type EstadoKeywords =
   | { ok: string }
@@ -26,6 +28,9 @@ export async function adicionarPalavra(
     .filter(Boolean);
 
   if (termos.length === 0) return { erro: "Digite ao menos um termo." };
+
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
 
   const assinatura = await prisma.subscription.findUnique({
     where: { accountId: conta.id },
@@ -90,6 +95,13 @@ export async function sugerirComIa(
         "Elas chegam no sync do perfil.",
     };
   }
+
+  // Geração de IA custa por chamada: entra na mesma guarda das criações.
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
+
+  const cota = await consumirCota(LIMITES.ia, conta.id);
+  if (!cota.permitido) return { erro: cota.mensagem };
 
   try {
     const sugestoes = await sugerirPalavrasChave(

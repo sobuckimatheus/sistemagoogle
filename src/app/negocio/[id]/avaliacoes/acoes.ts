@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import {
   ApiV4IndisponivelError,
   publicarResposta as publicarNoGoogle,
@@ -10,6 +11,7 @@ import {
 import { accessTokenValido } from "@/lib/google/conexao";
 import { IaIndisponivelError, rascunhoDeResposta } from "@/lib/ia";
 import { prisma } from "@/lib/prisma";
+import { consumirCota, LIMITES } from "@/lib/rate-limit";
 
 export type ResultadoAcao = { ok: true; texto?: string } | { erro: string };
 
@@ -34,6 +36,12 @@ export async function gerarRascunho(
   const avaliacao = await avaliacaoDaConta(reviewId);
   if (!avaliacao) return { erro: "Avaliação não encontrada." };
 
+  const bloqueio = await bloqueioDeEscrita(avaliacao.business.accountId);
+  if (bloqueio) return { erro: bloqueio };
+
+  const cota = await consumirCota(LIMITES.ia, avaliacao.business.accountId);
+  if (!cota.permitido) return { erro: cota.mensagem };
+
   try {
     const texto = await rascunhoDeResposta({
       nomeDoNegocio: avaliacao.business.title,
@@ -41,7 +49,7 @@ export async function gerarRascunho(
       autor: avaliacao.reviewerName,
       estrelas: avaliacao.starRating,
       comentario: avaliacao.comment,
-      tomDeVoz: null,
+      tomDeVoz: avaliacao.business.tomDeVoz,
     });
 
     // Guarda o rascunho para não perder a geração se a aba fechar — e para
@@ -77,6 +85,9 @@ export async function publicarResposta(
   if (!avaliacao.business.gbpAccountName) {
     return { erro: "Negócio sem conta GBP associada." };
   }
+
+  const bloqueio = await bloqueioDeEscrita(avaliacao.business.accountId);
+  if (bloqueio) return { erro: bloqueio };
 
   try {
     const token = await accessTokenValido(avaliacao.business.googleConnectionId);

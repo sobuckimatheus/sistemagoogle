@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { EntrarComGoogle, OuEntao } from "@/components/entrar-com-google";
 import { clientEnv } from "@/lib/env/client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -78,6 +79,9 @@ export default function CadastroPage() {
             Comece a acompanhar seu Perfil de Empresa no Google.
           </p>
         </div>
+
+        <EntrarComGoogle />
+        <OuEntao />
 
         <label className="flex flex-col gap-1 text-sm">
           Nome

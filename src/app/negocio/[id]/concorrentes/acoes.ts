@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import {
   buscarConcorrentes,
   PlacesIndisponivelError,
   type Concorrente,
 } from "@/lib/google/places";
 import { prisma } from "@/lib/prisma";
+import { consumirCota, LIMITES } from "@/lib/rate-limit";
 
 export type EstadoBusca =
   | { resultados: Concorrente[] }
@@ -22,6 +24,13 @@ export async function procurar(
   const { conta } = await exigirContaAtiva();
   const businessId = String(formData.get("businessId") ?? "");
   const negocio = await exigirNegocioDaConta(businessId, conta.id);
+
+  // Cada busca consome cota paga da Places API.
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
+
+  const cota = await consumirCota(LIMITES.places, conta.id);
+  if (!cota.permitido) return { erro: cota.mensagem };
 
   const consulta =
     String(formData.get("consulta") ?? "").trim() ||
@@ -64,6 +73,7 @@ export async function rastrear(formData: FormData) {
 
   const dados = JSON.parse(String(formData.get("dados") ?? "{}")) as Concorrente;
   if (!dados.placeId) return;
+  if (await bloqueioDeEscrita(conta.id)) return;
 
   const existente = await prisma.competitor.findFirst({
     where: { businessId, placeId: dados.placeId },

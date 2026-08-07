@@ -69,6 +69,12 @@ O caminho crítico é **E0 → E1 → E2 → E3 → E4**. Nada de valor aparece 
 | E1-08 | Tela de configurações da conta: nome, membros, papéis | M | OWNER vê e edita; MEMBER só visualiza |
 | E1-09 | Convite de membro por e-mail com token e expiração | M | Convidado aceita e vira `AccountMember` MEMBER |
 
+**Estado da E1:** completa. E1-01 fechou com `/recuperar-senha` e
+`/nova-senha` — a rota de recuperação já estava liberada no middleware, mas a
+página não existia; E1-02 entrou como `EntrarComGoogle` no login e no cadastro,
+com escopo só de identidade. E1-07 a E1-09 (seletor de conta, configurações,
+convites) foram entregues junto com as lacunas de schema.
+
 **Alerta de segurança em E1-06:** o Prisma se conecta ao Postgres como dono do banco, então **RLS do Supabase é ignorada** — a política de linha não protege nada nesse caminho. Todo o isolamento entre tenants tem que ser garantido em código, em cada `where`. Vale escrever um teste que tenta cruzar contas e espera falha.
 
 **Lacuna de schema em E1-09:** não existe model `Invite`. Precisa de migration nova com `Invite { id, accountId, email, role, token, expiresAt, acceptedAt }`.
@@ -235,6 +241,14 @@ ser revista se um cliente pedir.
 | E9-07 | Portal de gerenciamento de assinatura | P | Usuário troca cartão e cancela sozinho |
 | E9-08 | Política de downgrade: o que acontece com negócios excedentes | M | Comportamento definido e implementado |
 
+**Estado da E9:** E9-03 a E9-07 implementados — checkout, webhook com
+idempotência (`stripe_events`), bloqueio por status e portal, em
+`/conta/plano` e `/api/stripe/webhook`. Restam E9-01 e E9-02, que são
+operacionais e dependem de decisão comercial: criar os produtos no Stripe,
+definir preço e limites de verdade (o seed usa R$ 97 / R$ 297 como
+placeholder) e preencher `Plan.stripePriceId`. O enforcement de limites
+(E9-06) já existia nas criações e agora divide a mesma guarda de status.
+
 **Decisão pendente em E9-08:** o PRD não define se, ao cair de plano, os negócios excedentes são pausados automaticamente, bloqueados para leitura ou se o usuário escolhe quais manter. Precisa de decisão de produto antes da implementação — é a única tarefa deste backlog que não dá para começar sem resposta.
 
 ---
@@ -253,18 +267,53 @@ ser revista se um cliente pedir.
 | E10-08 | Runbook: allowlist do Google, billing das APIs, rotação de segredos, restore de backup | M | Documento revisado por quem não construiu o sistema |
 | E10-09 | Rotação da senha do banco e das chaves de API antes do go-live | P | Nenhum segredo usado em desenvolvimento sobrevive em produção |
 
+**Estado da E10:**
+
+| # | Estado |
+|---|---|
+| E10-01 | ✅ `estimativas.test.ts`, `auditoria.test.ts`, `negocio.test.ts`, `plano.test.ts` |
+| E10-02 | ⬜ exige Postgres efêmero no CI (service container) |
+| E10-03 | ⬜ Playwright ainda não instalado |
+| E10-04 | ✅ `src/lib/auth/isolamento.test.ts` — auditoria estática de toda Server Action |
+| E10-05 | ✅ `src/lib/rate-limit.ts`, ligado em SerpApi, Places e IA |
+| E10-06 | 🟡 `sync_runs` + `/api/cron/monitor-jobs`; falta Sentry |
+| E10-07 | ⬜ operacional, depende do acesso à Vercel |
+| E10-08 | ✅ [RUNBOOK.md](RUNBOOK.md) |
+| E10-09 | ⬜ operacional, procedimento documentado no runbook §5 |
+
+**Sobre a escolha em E10-04:** a auditoria é estática — varre todo arquivo com
+`"use server"` sob `src/app` e exige que ele chame uma das guardas de tenant,
+com uma lista explícita de exceções justificadas. Um teste de integração
+provaria que as ações de hoje isolam; este falha no instante em que alguém
+adiciona uma ação sem guarda, que é quando o erro é barato. Ele prova que a
+guarda foi chamada, não que o argumento passado a ela é o certo — não
+substitui revisão de código.
+
 ---
 
 ## Migrations adicionais necessárias
 
-Quatro lacunas entre o PRD e o `schema.prisma` atual exigem migration nova. Nenhuma bloqueia o início do desenvolvimento, mas todas bloqueiam a épica correspondente:
+Quatro lacunas entre o PRD e o `schema.prisma` inicial. **Todas resolvidas** na
+migration `prisma/migrations/3_lacunas` (espelhada em `sql/004_lacunas.sql`),
+que é aditiva — nenhuma coluna existente muda de tipo:
 
-| Model / campo | Para quê | Bloqueia |
+| Model / campo | Para quê | Desbloqueou |
 |---|---|---|
 | `Invite` | Convite de membro de equipe | E1-09 |
 | `Business.tomDeVoz` | Tom configurável das respostas de IA (PRD 5.4) | E3-09 |
 | `SyncRun` | Log de execução dos jobs | E4-02 |
 | `NotificationPreference` | Quem recebe e-mail de alerta crítico | E8-08 |
+
+A E9 exigiu uma quinta: `prisma/migrations/4_billing` (`sql/005_billing.sql`)
+com `StripeEvent` para a idempotência do webhook e
+`Subscription.cancelAtPeriodEnd`.
+
+Ambas já aplicadas com `pnpm db:migrate`.
+
+**Atenção ao `DIRECT_URL`:** use o session pooler (porta 5432 do host do
+pooler). O host de conexão direta `db.<projeto>.supabase.co` só tem registro
+AAAA — em rede sem IPv6 o Prisma falha com `P1001`, que parece projeto pausado
+e não é.
 
 ---
 

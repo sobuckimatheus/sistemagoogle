@@ -1,5 +1,7 @@
 import "server-only";
 
+import { enviarEmail } from "@/lib/email";
+import { clientEnv } from "@/lib/env/client";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -26,6 +28,96 @@ export type AlertasGerados = {
   quedaDeNota: boolean;
   inatividade: boolean;
 };
+
+/**
+ * Alerta de sync que falhou.
+ *
+ * Separado de `gerarAlertas` porque a origem é outra: aqui não há comparação
+ * de estado, há um job que não conseguiu rodar. Vale CRITICAL — enquanto o
+ * sync não volta, todo número da tela envelhece em silêncio, e silêncio é
+ * pior do que erro visível.
+ *
+ * Deduplicado por 24h: um job que falha em toda execução horária não pode
+ * encher a central de alertas com a mesma linha.
+ */
+export async function alertaDeSyncFalho(
+  businessId: string,
+  motivo: string,
+): Promise<boolean> {
+  const jaAvisou = await prisma.alert.findFirst({
+    where: {
+      businessId,
+      type: "SYNC_FAILED",
+      createdAt: { gt: new Date(Date.now() - 86400000) },
+    },
+  });
+
+  if (jaAvisou) return false;
+
+  const alerta = await prisma.alert.create({
+    data: {
+      businessId,
+      type: "SYNC_FAILED",
+      severity: "CRITICAL",
+      message: `A sincronização com o Google falhou: ${motivo}. Os dados da tela estão desatualizados até isso ser resolvido.`,
+      metaJson: { motivo },
+    },
+  });
+
+  await notificarAlertaCritico(alerta.id);
+
+  return true;
+}
+
+/**
+ * E-mail de alerta crítico (E8-08).
+ *
+ * Destinatários: os OWNER da conta dona do negócio, exceto quem desligou a
+ * preferência. MEMBER não recebe por padrão — quem responde por sync quebrado
+ * é quem administra a conta.
+ *
+ * Sai uma vez por alerta porque a chamada acontece no momento da criação, e a
+ * criação já é deduplicada. Falha de envio não propaga: o alerta continua na
+ * central, que é a fonte de verdade.
+ */
+export async function notificarAlertaCritico(alertId: string): Promise<number> {
+  const alerta = await prisma.alert.findUnique({
+    where: { id: alertId },
+    include: { business: { select: { id: true, title: true, accountId: true } } },
+  });
+
+  if (!alerta || alerta.severity !== "CRITICAL") return 0;
+
+  const donos = await prisma.accountMember.findMany({
+    where: { accountId: alerta.business.accountId, role: "OWNER" },
+    include: {
+      user: {
+        select: { email: true, notificationPrefs: true },
+      },
+    },
+  });
+
+  const destinatarios = donos
+    .filter((d) => d.user.notificationPrefs[0]?.emailOnCriticalAlert !== false)
+    .map((d) => d.user.email);
+
+  if (destinatarios.length === 0) return 0;
+
+  const envio = await enviarEmail({
+    para: destinatarios,
+    assunto: `[Painel GBP] Alerta crítico em ${alerta.business.title}`,
+    texto: [
+      alerta.message,
+      "",
+      `Negócio: ${alerta.business.title}`,
+      `Abra: ${clientEnv.NEXT_PUBLIC_APP_URL}/negocio/${alerta.business.id}/alertas`,
+      "",
+      "Para não receber mais estes e-mails, ajuste em Configurações da conta → Notificações.",
+    ].join("\n"),
+  });
+
+  return envio.enviado ? destinatarios.length : 0;
+}
 
 export async function gerarAlertas(
   businessId: string,

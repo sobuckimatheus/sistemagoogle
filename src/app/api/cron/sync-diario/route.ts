@@ -3,7 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { segredoConfere } from "@/lib/crypto";
 import { serverEnv } from "@/lib/env/server";
 import { prisma } from "@/lib/prisma";
-import { sincronizarNegocio } from "@/lib/sync/negocio";
+import { alertaDeSyncFalho } from "@/lib/sync/alertas";
+import { executarComRegistro } from "@/lib/sync/execucao";
+import {
+  itensDoSync,
+  primeiroErro,
+  sincronizarNegocio,
+  statusDoSync,
+} from "@/lib/sync/negocio";
 
 export const runtime = "nodejs";
 // Sync de várias contas não cabe no limite padrão de execução.
@@ -32,6 +39,12 @@ export async function GET(request: NextRequest) {
     where: {
       status: "ACTIVE",
       googleConnection: { status: "ACTIVE" },
+      // Assinatura cancelada para de sincronizar (E9-05). PAST_DUE continua:
+      // cobrança em retentativa não deve abrir buraco na série histórica, que
+      // o Google não reentrega depois.
+      account: {
+        subscription: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+      },
     },
     select: { id: true, title: true },
   });
@@ -39,9 +52,35 @@ export async function GET(request: NextRequest) {
   const resultados = [];
   for (const negocio of negocios) {
     try {
-      resultados.push(await sincronizarNegocio(negocio.id));
+      const execucao = await executarComRegistro(
+        "sync-diario",
+        negocio.id,
+        async () => {
+          const resultado = await sincronizarNegocio(negocio.id);
+          return {
+            resultado,
+            status: statusDoSync(resultado),
+            itens: itensDoSync(resultado),
+          };
+        },
+      );
+
+      if ("pulado" in execucao) {
+        // Outra invocação já está sincronizando este negócio agora.
+        resultados.push({ businessId: negocio.id, pulado: true });
+        continue;
+      }
+
+      resultados.push(execucao.resultado);
+
+      // Sync que não conseguiu nada é invisível para o usuário: a tela
+      // continua mostrando o dado velho como se fosse atual.
+      if (statusDoSync(execucao.resultado) === "FAILED") {
+        await alertaDeSyncFalho(negocio.id, primeiroErro(execucao.resultado));
+      }
     } catch (erro) {
       // Um negócio com problema não pode interromper a fila dos outros.
+      await alertaDeSyncFalho(negocio.id, (erro as Error).message);
       resultados.push({
         businessId: negocio.id,
         erro: (erro as Error).message,

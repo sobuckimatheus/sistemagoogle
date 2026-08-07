@@ -100,10 +100,12 @@ export function FormularioParametros({
   businessId,
   ticketMedio,
   taxaConversao,
+  tomDeVoz,
 }: {
   businessId: string;
   ticketMedio: number | null;
   taxaConversao: number | null;
+  tomDeVoz: string | null;
 }) {
   const [estado, acao, pendente] = useActionState<EstadoPerfil, FormData>(
     salvarParametros,
@@ -142,6 +144,22 @@ export function FormularioParametros({
         próximos da sua realidade, mais confiável fica a estimativa de receita
         — e é justamente esse número que o cliente questiona primeiro.
       </p>
+
+      <label className="flex flex-col gap-1 text-sm">
+        Tom de voz nas gerações de IA
+        <textarea
+          name="tomDeVoz"
+          rows={3}
+          maxLength={500}
+          defaultValue={tomDeVoz ?? ""}
+          placeholder="ex.: informal e próximo, tratando o cliente por você, sem gírias"
+          className={campo}
+        />
+        <span className="text-xs text-neutral-500">
+          Vale para rascunhos de resposta a avaliação e textos de postagem. Em
+          branco, a IA usa um tom cordial neutro.
+        </span>
+      </label>
 
       <Aviso estado={estado} />
 

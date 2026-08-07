@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { exigirContaAtiva } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { prisma } from "@/lib/prisma";
 import { sincronizarNegocio } from "@/lib/sync/negocio";
 
@@ -35,6 +36,9 @@ export async function salvarLocais(
     where: { id: conexaoId, accountId: conta.id, status: "ACTIVE" },
   });
   if (!conexao) return { erro: "Conexão inválida ou inativa." };
+
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
 
   const assinatura = await prisma.subscription.findUnique({
     where: { accountId: conta.id },

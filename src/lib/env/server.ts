@@ -36,6 +36,11 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+
+  RESEND_API_KEY: z.string().optional(),
+  // Remetente dos e-mails transacionais. Precisa ser de um domínio verificado
+  // no provedor; o padrão só funciona em teste.
+  EMAIL_FROM: z.string().default("Painel GBP <onboarding@resend.dev>"),
 });
 
 const resultado =

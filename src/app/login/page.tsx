@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { EntrarComGoogle, OuEntao } from "@/components/entrar-com-google";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function FormularioLogin() {
@@ -46,6 +47,9 @@ function FormularioLogin() {
         <p className="text-sm text-neutral-500">Entre para continuar.</p>
       </div>
 
+      <EntrarComGoogle proximo={proximo} />
+      <OuEntao />
+
       <label className="flex flex-col gap-1 text-sm">
         E-mail
         <input
@@ -66,6 +70,12 @@ function FormularioLogin() {
           onChange={(e) => setSenha(e.target.value)}
           className="rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
         />
+        <Link
+          href="/recuperar-senha"
+          className="self-end text-xs text-neutral-500 underline"
+        >
+          Esqueci minha senha
+        </Link>
       </label>
 
       {erro && (

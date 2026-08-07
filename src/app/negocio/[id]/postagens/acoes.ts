@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { IaIndisponivelError, textoDePostagem } from "@/lib/ia";
 import { prisma } from "@/lib/prisma";
+import { consumirCota, LIMITES } from "@/lib/rate-limit";
 import { publicarPostSalvo } from "@/lib/sync/publicar";
 
 export type EstadoPost =
@@ -24,12 +26,18 @@ export async function gerarTexto(
   const assunto = String(formData.get("assunto") ?? "").trim();
   if (!assunto) return { erro: "Diga sobre o que é o post." };
 
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
+
+  const cota = await consumirCota(LIMITES.ia, conta.id);
+  if (!cota.permitido) return { erro: cota.mensagem };
+
   try {
     const texto = await textoDePostagem(
       negocio.title,
       negocio.primaryCategory,
       assunto,
-      null,
+      negocio.tomDeVoz,
     );
     return { texto };
   } catch (erro) {
@@ -56,6 +64,9 @@ export async function salvarPost(
   if (summary.length > 1500) {
     return { erro: "O Google aceita no máximo 1500 caracteres." };
   }
+
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
 
   if (acao === "agendar") {
     if (!agendadoPara) return { erro: "Escolha data e hora do agendamento." };
@@ -108,6 +119,11 @@ export async function publicarAgora(formData: FormData) {
   if (!post) return;
 
   await exigirNegocioDaConta(post.businessId, conta.id);
+
+  // Publicar escreve no perfil público do cliente: fica bloqueado enquanto a
+  // cobrança não estiver em dia.
+  if (await bloqueioDeEscrita(conta.id)) return;
+
   await publicarPostSalvo(postId);
 
   revalidatePath(`/negocio/${post.businessId}/postagens`);

@@ -1,7 +1,9 @@
 "use server";
 
 import { exigirContaAtiva } from "@/lib/auth/conta";
+import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { prisma } from "@/lib/prisma";
+import { consumirCota, LIMITES } from "@/lib/rate-limit";
 import {
   buscarNegocio,
   rankingNoMaps,
@@ -39,6 +41,13 @@ export async function analisarMercado(
   if (!nome || !cidade || !termo) {
     return { tipo: "erro", mensagem: "Preencha negócio, cidade e palavra-chave." };
   }
+
+  // Cada análise queima uma das 100 buscas mensais do SerpApi.
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { tipo: "erro", mensagem: bloqueio };
+
+  const cota = await consumirCota(LIMITES.serpapi, conta.id);
+  if (!cota.permitido) return { tipo: "erro", mensagem: cota.mensagem };
 
   try {
     const encontrados = await buscarNegocio(nome, cidade);

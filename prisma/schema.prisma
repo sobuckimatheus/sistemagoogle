@@ -23,6 +23,7 @@ model Account {
   updatedAt DateTime @default(now()) @updatedAt
 
   members           AccountMember[]
+  invites           Invite[]
   googleConnections GoogleConnection[]
   businesses        Business[]
   marketScans       MarketScan[]
@@ -50,6 +51,29 @@ model AccountMember {
   @@map("account_members")
 }
 
+/// Convite de membro para uma conta.
+///
+/// O `token` é o segredo enviado por e-mail — é ele que autoriza o aceite,
+/// então tem índice único e prazo de validade. Convite aceito guarda
+/// `acceptedAt` em vez de ser apagado: sem esse registro não dá para auditar
+/// quem entrou na conta e por qual convite.
+model Invite {
+  id         String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId  String
+  account    Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  email      String
+  role       AccountRole @default(MEMBER)
+  token      String      @unique
+  invitedBy  String? // userId de quem convidou
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@index([accountId])
+  @@index([email])
+  @@map("invites")
+}
+
 model User {
   id        String   @id // id do Supabase Auth
   email     String   @unique
@@ -58,6 +82,7 @@ model User {
 
   memberships       AccountMember[]
   googleConnections GoogleConnection[] // quem de fato clicou "conectar" (auditoria)
+  notificationPrefs NotificationPreference[]
 
   @@map("users")
 }
@@ -71,19 +96,19 @@ enum GoogleConnectionStatus {
 }
 
 model GoogleConnection {
-  id                String                  @id @default(dbgenerated("(gen_random_uuid())::text"))
-  accountId         String
-  account           Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  connectedByUserId String
-  connectedByUser   User                    @relation(fields: [connectedByUserId], references: [id])
+  id                 String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  accountId          String
+  account            Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  connectedByUserId  String
+  connectedByUser    User                   @relation(fields: [connectedByUserId], references: [id])
   googleAccountEmail String?
-  accessToken       String?                 @db.Text // criptografado na aplicação
-  refreshToken      String?                 @db.Text // criptografado na aplicação
-  tokenExpiry       DateTime?
-  scopes            String?
-  status            GoogleConnectionStatus  @default(ACTIVE)
-  createdAt         DateTime                @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  accessToken        String?                @db.Text // criptografado na aplicação
+  refreshToken       String?                @db.Text // criptografado na aplicação
+  tokenExpiry        DateTime?
+  scopes             String?
+  status             GoogleConnectionStatus @default(ACTIVE)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @default(now()) @updatedAt
 
   businesses Business[]
 
@@ -100,27 +125,27 @@ enum BusinessStatus {
 }
 
 model Business {
-  id                 String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id                 String           @id @default(dbgenerated("(gen_random_uuid())::text"))
   accountId          String
-  account            Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account            Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
   googleConnectionId String
   googleConnection   GoogleConnection @relation(fields: [googleConnectionId], references: [id])
 
   // identificação no Google
-  gbpAccountName  String? // resource name da conta GBP (accounts/123)
-  locationName    String  @unique // resource name do local (locations/456)
-  placeId         String?
+  gbpAccountName String? // resource name da conta GBP (accounts/123)
+  locationName   String  @unique // resource name do local (locations/456)
+  placeId        String?
 
   // dados do perfil (cache — origem de verdade é o Google; sincronizado periodicamente)
-  title               String
-  primaryCategory     String?
-  primaryCategoryGcid String? // id interno da categoria (para editar/comparar)
+  title                String
+  primaryCategory      String?
+  primaryCategoryGcid  String? // id interno da categoria (para editar/comparar)
   additionalCategories String[]
-  description         String?  @db.Text
-  phone               String?
+  description          String?  @db.Text
+  phone                String?
   website              String?
-  addressLine1        String?
-  addressLine2        String?
+  addressLine1         String?
+  addressLine2         String?
   city                 String?
   state                String?
   postalCode           String?
@@ -129,15 +154,19 @@ model Business {
   lng                  Float?
 
   // configuração usada nas métricas estimadas (5.9 do PRD)
-  ticketMedio          Float?
-  taxaConversaoManual  Float? // 0-1; se nulo, usa SegmentBenchmark pela categoria
+  ticketMedio         Float?
+  taxaConversaoManual Float? // 0-1; se nulo, usa SegmentBenchmark pela categoria
+
+  // tom das gerações de IA (5.4 do PRD); nulo = tom padrão do prompt
+  tomDeVoz String? @db.Text
 
   status       BusinessStatus @default(ACTIVE)
   lastSyncedAt DateTime?
   createdAt    DateTime       @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt    DateTime       @default(now()) @updatedAt
 
   performanceDaily PerformanceDaily[]
+  syncRuns         SyncRun[]
   reviews          Review[]
   auditSnapshots   AuditSnapshot[]
   competitors      Competitor[]
@@ -159,13 +188,13 @@ model PerformanceDaily {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   date       DateTime @db.Date
 
-  viewsSearch      Int @default(0)
-  viewsMaps        Int @default(0)
-  calls            Int @default(0)
-  websiteClicks    Int @default(0)
+  viewsSearch       Int @default(0)
+  viewsMaps         Int @default(0)
+  calls             Int @default(0)
+  websiteClicks     Int @default(0)
   directionRequests Int @default(0)
-  conversations    Int @default(0)
-  bookings         Int @default(0)
+  conversations     Int @default(0)
+  bookings          Int @default(0)
 
   syncedAt DateTime @default(now())
 
@@ -177,14 +206,14 @@ model PerformanceDaily {
 // ── Avaliações ──────────────────────────────────────────────────────────────
 
 model Review {
-  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  gbpReviewId  String // id da avaliação na API v4
-  reviewerName String?
+  id               String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId       String
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  gbpReviewId      String // id da avaliação na API v4
+  reviewerName     String?
   reviewerPhotoUrl String?
-  starRating   Int?
-  comment      String?  @db.Text
+  starRating       Int?
+  comment          String?  @db.Text
 
   replyText    String?   @db.Text // resposta efetivamente publicada
   repliedAt    DateTime?
@@ -248,14 +277,14 @@ model CompetitorSnapshot {
 // ── Palavras-chave e Rank Tracking ──────────────────────────────────────────
 
 model Keyword {
-  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  term       String
-  volume     Int? // buscas/mês (DataForSEO), cache mensal
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId     String
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  term           String
+  volume         Int? // buscas/mês (DataForSEO), cache mensal
   volumeSyncedAt DateTime?
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
 
   rankChecks RankCheck[]
 
@@ -348,7 +377,7 @@ model Post {
   publishedAt  DateTime?
   errorMessage String?
   createdAt    DateTime  @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt    DateTime  @default(now()) @updatedAt
 
   @@index([businessId, state])
   @@map("posts")
@@ -408,6 +437,22 @@ model Alert {
   @@map("alerts")
 }
 
+/// Preferência de notificação por e-mail.
+///
+/// A preferência é do usuário, não da conta: quem recebe é uma pessoa, e a
+/// mesma pessoa em duas contas não quer regras diferentes para a própria
+/// caixa de entrada. Sem linha aqui vale o padrão — todo OWNER recebe alerta
+/// CRITICAL —, então a tabela só guarda quem mudou o padrão.
+model NotificationPreference {
+  id                   String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailOnCriticalAlert Boolean  @default(true)
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  @@map("notification_preferences")
+}
+
 // ── Benchmarks para métricas estimadas ───────────────────────────────────────
 
 model SegmentBenchmark {
@@ -416,7 +461,7 @@ model SegmentBenchmark {
   avgConversionRate Float // 0-1, referência do segmento (5.9 do PRD)
   avgTicket         Float // R$, fallback se o negócio não configurar o próprio
   source            String? // de onde veio o número (nota de transparência)
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt         DateTime @default(now()) @updatedAt
 
   @@map("segment_benchmarks")
 }
@@ -435,6 +480,40 @@ model Report {
 
   @@index([businessId])
   @@map("reports")
+}
+
+// ── Execução de jobs ──────────────────────────────────────────────────────
+
+enum SyncRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+  SKIPPED
+}
+
+/// Registro de execução de job.
+///
+/// Existe para que a falha de um sync seja auditável dentro do produto, sem
+/// depender do log da plataforma de deploy — que expira, não é consultável por
+/// negócio e não sobrevive a uma troca de host.
+///
+/// `businessId` é opcional porque há jobs que rodam para a instalação inteira
+/// (a varredura que enfileira os negócios), não para um negócio específico.
+model SyncRun {
+  id             String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId     String?
+  business       Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  jobType        String // sync-diario | snapshot-concorrentes | publicar-agendados
+  status         SyncRunStatus @default(RUNNING)
+  itemsProcessed Int           @default(0)
+  errorMessage   String?       @db.Text
+  startedAt      DateTime      @default(now())
+  finishedAt     DateTime?
+
+  @@index([businessId, startedAt])
+  @@index([jobType, startedAt])
+  @@map("sync_runs")
 }
 
 // ── Billing ──────────────────────────────────────────────────────────────
@@ -476,8 +555,42 @@ model Subscription {
   stripeCustomerId     String?
   stripeSubscriptionId String?
   currentPeriodEnd     DateTime?
+  /// Cancelamento agendado para o fim do período já pago. O acesso continua
+  /// até `currentPeriodEnd` — cortar na hora seria cobrar por tempo não usado.
+  cancelAtPeriodEnd    Boolean            @default(false)
   createdAt            DateTime           @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt            DateTime           @default(now()) @updatedAt
 
+  @@index([stripeCustomerId])
   @@map("subscriptions")
+}
+
+/// Consumo registrado para rate limiting (E10-05).
+///
+/// Uma linha por chamada a API paga, com a chave identificando conta+recurso.
+/// Contador em memória não serve: cada invocação serverless tem a própria
+/// memória, então o limite seria multiplicado pelo número de instâncias quentes
+/// — exatamente o cenário de um loop queimando a cota mensal do SerpApi.
+model RateLimitHit {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  chave     String // "<recurso>:<accountId>"
+  createdAt DateTime @default(now())
+
+  @@index([chave, createdAt])
+  @@map("rate_limit_hits")
+}
+
+/// Eventos do Stripe já processados (idempotência do webhook — E9-04).
+///
+/// O Stripe reentrega evento sempre que a resposta demora ou falha, e a mesma
+/// entrega pode chegar duas vezes em paralelo. A chave primária é o próprio id
+/// do evento: gravar antes de processar transforma "já vi isto?" em uma
+/// violação de unicidade, que é atômica — diferente de um SELECT seguido de
+/// INSERT, onde as duas entregas podem passar juntas pela checagem.
+model StripeEvent {
+  id          String   @id // evt_... vindo do Stripe
+  type        String
+  processedAt DateTime @default(now())
+
+  @@map("stripe_events")
 }

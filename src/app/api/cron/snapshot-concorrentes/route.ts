@@ -4,6 +4,7 @@ import { segredoConfere } from "@/lib/crypto";
 import { serverEnv } from "@/lib/env/server";
 import { buscarConcorrentes } from "@/lib/google/places";
 import { prisma } from "@/lib/prisma";
+import { executarComRegistro } from "@/lib/sync/execucao";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -25,6 +26,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
 
+  const execucao = await executarComRegistro(
+    "snapshot-concorrentes",
+    null,
+    async () => {
+      const { concorrentes, capturados, erros } = await capturarSnapshots();
+      return {
+        resultado: { concorrentes, capturados, erros },
+        status:
+          erros.length === 0
+            ? ("SUCCESS" as const)
+            : capturados > 0
+              ? ("PARTIAL" as const)
+              : ("FAILED" as const),
+        itens: capturados,
+      };
+    },
+  );
+
+  if ("pulado" in execucao) {
+    return NextResponse.json({ pulado: "já em execução" }, { status: 409 });
+  }
+
+  return NextResponse.json({
+    executadoEm: new Date().toISOString(),
+    ...execucao.resultado,
+  });
+}
+
+async function capturarSnapshots() {
   const concorrentes = await prisma.competitor.findMany({
     where: { placeId: { not: null }, business: { status: "ACTIVE" } },
     include: { business: true },
@@ -65,10 +95,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    executadoEm: new Date().toISOString(),
-    concorrentes: concorrentes.length,
-    capturados,
-    erros,
-  });
+  return { concorrentes: concorrentes.length, capturados, erros };
 }

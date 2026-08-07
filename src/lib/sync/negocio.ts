@@ -25,6 +25,43 @@ export type ResultadoSync = {
   alertas?: { erro: string };
 };
 
+/** Etapas do sync que falharam, na ordem em que aparecem no resultado. */
+export function errosDoSync(resultado: ResultadoSync): string[] {
+  return [resultado.desempenho, resultado.avaliacoes, resultado.auditoria]
+    .filter((etapa) => "erro" in etapa)
+    .map((etapa) => (etapa as { erro: string }).erro);
+}
+
+/**
+ * Traduz o resultado do sync no status da execução (E4-02).
+ *
+ * PARTIAL não é meia-falha: com a API v4 fora do allowlist, "desempenho ok +
+ * avaliações bloqueadas" é o estado normal por semanas. Marcar isso como
+ * FAILED faria o alerta de sync tocar todo dia sem nada que o usuário possa
+ * resolver — e alerta que não se pode resolver é alerta que se aprende a
+ * ignorar.
+ */
+export function statusDoSync(
+  resultado: ResultadoSync,
+): "SUCCESS" | "PARTIAL" | "FAILED" {
+  const quantidade = errosDoSync(resultado).length;
+  if (quantidade === 0) return "SUCCESS";
+  return quantidade === 3 ? "FAILED" : "PARTIAL";
+}
+
+/** Quantidade de registros escritos, para o log de execução. */
+export function itensDoSync(resultado: ResultadoSync): number {
+  const dias = "dias" in resultado.desempenho ? resultado.desempenho.dias : 0;
+  const avaliacoes =
+    "total" in resultado.avaliacoes ? resultado.avaliacoes.total : 0;
+  return dias + avaliacoes;
+}
+
+/** Motivo a exibir quando o sync inteiro falhou. */
+export function primeiroErro(resultado: ResultadoSync): string {
+  return errosDoSync(resultado)[0] ?? "motivo não informado";
+}
+
 /**
  * Sincroniza um negócio: desempenho, avaliações e auditoria.
  *

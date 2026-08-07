@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { segredoConfere } from "@/lib/crypto";
 import { serverEnv } from "@/lib/env/server";
 import { prisma } from "@/lib/prisma";
+import { executarComRegistro } from "@/lib/sync/execucao";
 import { publicarPostSalvo } from "@/lib/sync/publicar";
 
 export const runtime = "nodejs";
@@ -25,6 +26,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
 
+  const execucao = await executarComRegistro(
+    "publicar-agendados",
+    null,
+    async () => {
+      const resultado = await publicarVencidos();
+      return {
+        resultado,
+        status:
+          resultado.falhas.length === 0
+            ? ("SUCCESS" as const)
+            : resultado.publicados > 0
+              ? ("PARTIAL" as const)
+              : ("FAILED" as const),
+        itens: resultado.publicados,
+      };
+    },
+  );
+
+  if ("pulado" in execucao) {
+    return NextResponse.json({ pulado: "já em execução" }, { status: 409 });
+  }
+
+  return NextResponse.json({
+    executadoEm: new Date().toISOString(),
+    ...execucao.resultado,
+  });
+}
+
+async function publicarVencidos() {
   const vencidos = await prisma.post.findMany({
     where: {
       state: "SCHEDULED",
@@ -42,10 +72,9 @@ export async function GET(request: NextRequest) {
     resultados.push({ postId: post.id, ...(await publicarPostSalvo(post.id)) });
   }
 
-  return NextResponse.json({
-    executadoEm: new Date().toISOString(),
+  return {
     vencidos: vencidos.length,
     publicados: resultados.filter((r) => "ok" in r).length,
     falhas: resultados.filter((r) => "erro" in r),
-  });
+  };
 }
