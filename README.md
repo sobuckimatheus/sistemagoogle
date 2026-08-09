@@ -56,6 +56,11 @@ provider.
 | `pnpm db:generate` | gera o Prisma Client |
 | `pnpm db:migrate` | aplica migrations (`migrate deploy`) |
 | `pnpm db:studio` | Prisma Studio |
+| `pnpm test` | testes unitários |
+| `pnpm test:integration` | testes contra um Postgres efêmero |
+| `pnpm test:e2e` | E2E com Playwright |
+| `pnpm volume:testar` | diagnostica a fonte de volume de busca |
+| `pnpm stripe:precos` | cria produtos e preços no Stripe |
 
 `SKIP_ENV_VALIDATION=1` desliga a validação de env — existe para CI e para
 build sem acesso aos segredos, nunca para runtime.
@@ -153,6 +158,20 @@ O webhook precisa ser registrado no Stripe apontando para
 `/api/stripe/webhook`, ouvindo `checkout.session.completed`,
 `customer.subscription.*` e `invoice.payment_failed`. Em desenvolvimento:
 `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
+
+## Testes
+
+Três suítes, com custos diferentes de rodar:
+
+| Suíte | Precisa de | O que só ela pega |
+|---|---|---|
+| `pnpm test` | nada | fórmulas estimadas, auditoria, criptografia, regras de plano, e a auditoria estática de isolamento |
+| `pnpm test:integration` | Postgres efêmero | o lock dos jobs (advisory lock em transação), idempotência do provisionamento, janela do rate limit |
+| `pnpm test:e2e` | Postgres + navegador | cadastro até o primeiro painel, com um Supabase Auth de mentira |
+
+A suíte de integração recusa rodar contra host que não seja local ou banco sem
+`test` no nome — duas checagens, porque um banco chamado `..._test` hospedado
+remotamente ainda seria o banco de alguém.
 
 ## E-mail
 

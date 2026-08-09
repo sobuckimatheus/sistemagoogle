@@ -87,6 +87,11 @@ const servidor = createServer(async (req, res) => {
 
   if (req.method === "OPTIONS") return responder(res, 200, {});
 
+  // Existe para o Playwright saber que o processo subiu. Precisa responder
+  // 2xx: o `webServer` considera qualquer outro status como "ainda não
+  // pronto" e desiste no timeout.
+  if (rota === "/health") return responder(res, 200, { ok: true });
+
   // Cadastro: devolve sessão direto, como um projeto com confirmação de
   // e-mail desligada. O caminho com confirmação é coberto por teste de
   // unidade, não vale a complexidade aqui.

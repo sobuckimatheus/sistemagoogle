@@ -272,14 +272,20 @@ placeholder) e preencher `Plan.stripePriceId`. O enforcement de limites
 | # | Estado |
 |---|---|
 | E10-01 | ✅ `estimativas.test.ts`, `auditoria.test.ts`, `negocio.test.ts`, `plano.test.ts` |
-| E10-02 | ⬜ exige Postgres efêmero no CI (service container) |
-| E10-03 | ⬜ Playwright ainda não instalado |
-| E10-04 | ✅ `src/lib/auth/isolamento.test.ts` — auditoria estática de toda Server Action |
-| E10-05 | ✅ `src/lib/rate-limit.ts`, ligado em SerpApi, Places e IA |
-| E10-06 | 🟡 `sync_runs` + `/api/cron/monitor-jobs`; falta Sentry |
+| E10-02 | ✅ suíte `*.itest.ts` com Postgres efêmero (job `integracao` no CI) |
+| E10-03 | ✅ `e2e/` com Playwright e um Supabase Auth de mentira (job `e2e` no CI) |
+| E10-04 | ✅ auditoria estática (`isolamento.test.ts`) + prova em runtime (`isolamento.itest.ts`) |
+| E10-05 | ✅ `src/lib/rate-limit.ts`, ligado em SerpApi, Places, IA e volume |
+| E10-06 | ✅ `sync_runs`, `/api/cron/monitor-jobs` e Sentry com DSN opcional |
 | E10-07 | ⬜ operacional, depende do acesso à Vercel |
 | E10-08 | ✅ [RUNBOOK.md](RUNBOOK.md) |
 | E10-09 | ⬜ operacional, procedimento documentado no runbook §5 |
+
+**Sobre o E2E:** o Supabase Auth é substituído por `e2e/mock-supabase.mjs`.
+Apontar para o Supabase real exigiria segredo no CI, criaria usuários de
+verdade a cada execução e deixaria a suíte à mercê de um serviço externo. O
+que fica de fora, então, é o próprio Supabase — tudo do nosso lado da fronteira
+é exercitado de verdade, em navegador e banco reais.
 
 **Sobre a escolha em E10-04:** a auditoria é estática — varre todo arquivo com
 `"use server"` sob `src/app` e exige que ele chame uma das guardas de tenant,

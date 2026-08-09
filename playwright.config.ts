@@ -35,16 +35,22 @@ export default defineConfig({
   webServer: [
     {
       command: `node e2e/mock-supabase.mjs`,
-      url: `http://127.0.0.1:${PORTA_MOCK}/auth/v1/user`,
+      // Precisa ser uma rota que responda 2xx: o Playwright trata qualquer
+      // outro status como "ainda não subiu" e espera até o timeout.
+      url: `http://127.0.0.1:${PORTA_MOCK}/health`,
       reuseExistingServer: !process.env.CI,
-      // O endpoint responde 401 sem token — o que já prova que subiu.
-      ignoreHTTPSErrors: true,
+      stdout: "pipe",
+      stderr: "pipe",
     },
     {
       command: `pnpm start --port ${PORTA_APP}`,
       url: `http://127.0.0.1:${PORTA_APP}/login`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      // Sem isto, um erro de Server Component aparece como teste que falhou
+      // sem explicação — o log do Next fica invisível no CI.
+      stdout: "pipe",
+      stderr: "pipe",
       env: {
         DATABASE_URL: bancoDeTeste,
         DIRECT_URL: bancoDeTeste,

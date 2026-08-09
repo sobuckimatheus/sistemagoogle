@@ -309,6 +309,32 @@ entrega para o dono da conta.
 
 ---
 
+## 4.6 Observabilidade
+
+Sem `SENTRY_DSN` o SDK não é inicializado — nada quebra, e nenhum evento de
+desenvolvimento polui o painel de produção. Para ligar em produção, defina
+`SENTRY_DSN` (servidor) e `NEXT_PUBLIC_SENTRY_DSN` (navegador, mesmo valor).
+
+`SENTRY_AUTH_TOKEN`, `SENTRY_ORG` e `SENTRY_PROJECT` só afetam o build: sem
+eles o build funciona e os stack traces chegam ofuscados, porque os source
+maps não são enviados.
+
+Dois filtros deliberados, que valem saber antes de "consertar":
+
+- Erros de allowlist do Google e da API v4 são ignorados. São falhas externas
+  frequentes e já auditáveis em `sync_runs`; mandá-las para o Sentry
+  transformaria o painel em ruído e treinaria o time a ignorá-lo.
+- Session Replay está desligado. Ele grava a tela do usuário, e este produto
+  exibe dados de clientes de terceiros — ligar isso é decisão de privacidade,
+  não de configuração.
+
+Os eventos do navegador saem por `/monitoring`, uma rota do próprio app, para
+que bloqueadores de anúncio não descartem os relatórios.
+
+**O que o Sentry não cobre:** job que deixou de rodar. Erro que não acontece
+não gera evento. Esse buraco é coberto por `/api/cron/monitor-jobs` (§4.3), e
+é por isso que os dois existem.
+
 ## 5. Rotação de segredos
 
 Ordem importa: rotacione, atualize a env, **depois** reimplante.
@@ -319,6 +345,7 @@ Ordem importa: rotacione, atualize a env, **depois** reimplante.
 | `CRON_SECRET` | `openssl rand -hex 32` | crons falham com 401 até o redeploy |
 | `ENCRYPTION_KEY` | `openssl rand -base64 32` | **destrutivo**: torna ilegível todo token OAuth já gravado; todos os clientes precisam reconectar. Ver 5.1 |
 | Chaves Google/SerpApi/Anthropic | console de cada provedor | nenhum, se trocado sem intervalo |
+| `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens | só o upload de source map para de funcionar |
 | `GOOGLE_ADS_REFRESH_TOKEN` | OAuth Playground, escopo `adwords` | revogar o antigo no Google só depois do deploy |
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys | revogar a antiga só depois do deploy |
 | Service role do Supabase | Supabase → API | ignora RLS: trate como senha do banco |
@@ -385,4 +412,5 @@ a env de produção em preview: qualquer PR passaria a escrever no banco real.
 - [ ] Todos os segredos de desenvolvimento rotacionados (seção 5)
 - [ ] Env de preview apontando para banco de staging
 - [ ] Monitor externo apontado para `/api/cron/monitor-jobs`
+- [ ] `SENTRY_DSN` e `NEXT_PUBLIC_SENTRY_DSN` definidos na env de produção
 - [ ] Backup manual feito e restore testado ao menos uma vez
