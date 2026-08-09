@@ -40,7 +40,8 @@ const MINUTOS_ATE_ABANDONAR = 30;
 export type JobType =
   | "sync-diario"
   | "snapshot-concorrentes"
-  | "publicar-agendados";
+  | "publicar-agendados"
+  | "volume-keywords";
 
 export type FimDaExecucao = {
   status: Exclude<SyncRunStatus, "RUNNING">;

@@ -109,7 +109,7 @@ convites) foram entregues junto com as lacunas de schema.
 | E3-04 | Wrapper da API v4: `reviews.list`, `reviews.updateReply`, `localPosts.create` | M | Publicar resposta reflete no perfil real |
 | E3-05 | Wrapper da Places API (New): busca de concorrentes preservando a ordem de relevância do Google | M | Ordem retornada é idêntica à do Google, sem reordenação |
 | E3-06 | Wrapper do SerpApi: consulta por ponto geográfico, com contabilização de cota antes de disparar grid | M | Grid 5x5 só dispara se houver 25 buscas disponíveis |
-| E3-07 | Wrapper do DataForSEO: volume mensal com cache de 30 dias | P | Segunda chamada no mês não consome API |
+| ~~E3-07~~ | ~~Wrapper do DataForSEO~~ → **substituído pelo Keyword Planner do Google Ads** (`src/lib/google/ads.ts`) | P | ✅ volume com cache mensal; segunda chamada no mês não consome API |
 | E3-08 | `[BLOQUEIA]` Serviço Anthropic com o SDK oficial `@anthropic-ai/sdk`, modelo `claude-opus-5`, thinking adaptativo e streaming nas gerações longas | M | Quatro casos de uso funcionam: resposta a avaliação, recomendação de auditoria, sugestão de keywords, texto de post |
 | E3-09 | Prompts versionados por caso de uso, com tom configurável por negócio | M | Trocar o tom muda o rascunho gerado |
 | E3-10 | Camada de erro de integração: mapear falha de cada API para uma mensagem de UI acionável | M | Nenhum erro de API vaza stack trace para a tela |
@@ -197,7 +197,7 @@ ser revista se um cliente pedir.
 | E7-02 | Marcar concorrentes para acompanhar (`Competitor`) e comparativo lado a lado | M | Comparativo mostra nota, nº de avaliações, site e horários |
 | E7-03 | Evolução do concorrente a partir de `CompetitorSnapshot` | M | Gráfico aparece após o segundo snapshot |
 | E7-04 | CRUD de palavras-chave com limite de plano e sugestão por IA | M | Exceder `maxKeywords` leva ao checkout |
-| E7-05 | Exibição de volume com estado "indisponível" quando o DataForSEO falha | P | Ausência de volume não quebra a tela |
+| E7-05 | ✅ Exibição de volume com estado "indisponível" quando o Google Ads falha ou não tem dado | P | Ausência de volume não quebra a tela |
 | ~~E7-06~~ | ~~Rank check SINGLE e GRID~~ | — | **Fora de escopo** — ver decisão abaixo |
 | ~~E7-07~~ | ~~Mapa de calor da grade~~ | — | **Fora de escopo** |
 | ~~E7-08~~ | ~~Guarda de cota do SerpApi para grid~~ | — | **Fora de escopo** |

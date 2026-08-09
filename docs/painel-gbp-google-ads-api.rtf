@@ -1,0 +1,46 @@
+{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\fswiss Helvetica;}}
+\margl1440\margr1440\margt1440\margb1440
+\pard\qc\sa120\f0\fs36\b Painel GBP - Tool Documentation\b0\par
+\pard\qc\sa360\f0\fs24\i Google Ads API - Basic Access Application\i0\par
+\pard\sb280\sa120\f0\fs26\b 1. Overview\b0\par
+\pard\sa160\f0\fs22 Painel GBP is a B2B software-as-a-service application that helps local businesses and marketing agencies manage and improve their presence on Google Business Profile. It centralizes, in a single dashboard, the information that is otherwise spread across several Google surfaces: profile data, customer reviews, performance metrics, local posts, competitor comparison and an improvement checklist.\par
+\pard\sa160\f0\fs22 The product is currently in pre-launch. Subscription plans and the billing integration (Stripe) are implemented, and the application will be sold as a monthly subscription directly to the businesses and agencies that use it.\par
+\pard\sa160\f0\fs22 This document describes the product as a whole and, in detail, the single point where the Google Ads API is used.\par
+\pard\sb280\sa120\f0\fs26\b 2. How customers use the product\b0\par
+\pard\sa160\f0\fs22 Each customer creates an account and connects their own Google Business Profile through OAuth. From that point on, the application periodically synchronizes the data of the connected locations and presents the following modules:\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Dashboard - consolidated performance for a chosen period, with comparison against the previous period.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Profile - view and edit the business information published on Google.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Reviews - list, filter and reply to customer reviews.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Performance - daily series of views, calls, direction requests and website clicks.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Posts - create, schedule and publish local posts.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Competitors - compare rating, review count and profile completeness against nearby businesses.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Keywords - the search terms the customer wants to monitor for their own business. This is the only module that uses the Google Ads API.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Checklist and Reports - prioritized improvement tasks and periodic exports.\par
+\pard\sb280\sa120\f0\fs26\b 3. Where the Google Ads API is used\b0\par
+\pard\sa160\f0\fs22 In the Keywords module, the customer adds the search terms that matter to their business - for example, "barber shop downtown" for a barber shop. Next to each term the application displays the average monthly search volume, so that the business owner can tell which terms have real demand in their city and prioritize accordingly.\par
+\pard\sa160\f0\fs22 That number is obtained from the Google Ads API. The application calls a single service:\par
+\pard\li560\sa160\f0\fs22\b KeywordPlanIdeaService.GenerateKeywordIdeas\b0\par
+\pard\sa160\f0\fs22 The request contains only the terms the customer explicitly chose to track, plus the geographic target and language of the business (by default Brazil and Portuguese). From the response, the application reads the average monthly searches and the competition index for those exact terms.\par
+\pard\sb280\sa120\f0\fs26\b 4. Technical implementation\b0\par
+\pard\sa160\f0\fs22 The integration is deliberately narrow. Its full source is contained in two modules of our codebase: one that performs the API call and one that decides when a keyword needs to be refreshed.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Read-only. The application performs no mutate operations. It does not create, modify or manage campaigns, ad groups, ads, budgets or bids, and it never spends on behalf of any account.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Single service. GenerateKeywordIdeas is the only Google Ads API service called by the application.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Monthly cache. Search volume is stored in our database together with the timestamp of the last refresh. A keyword is only queried again after thirty days, because the metric itself is a monthly average - querying more often would rewrite the same number.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Batching. Terms are grouped into a single request per batch instead of one request per keyword.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Rate limiting. The application enforces its own limit per customer account, on a sliding window, so that no user can trigger repeated refreshes.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab Expected volume. A few hundred operations per month in total, growing linearly and slowly with the number of subscribers.\par
+\pard\sa160\f0\fs22 The application also runs a scheduled monthly job that refreshes only the keywords whose data has expired, ordered by age, with a cap per execution.\par
+\pard\sb280\sa120\f0\fs26\b 5. Data handling and security\b0\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab The search volume retrieved from the Google Ads API is stored only as a numeric field attached to the keyword that the customer created, inside that customer's own account.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab The data is displayed exclusively to authenticated users of the account that owns those keywords. It is never public, never indexed and never shared with other customers.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab The data is not sold, resold, redistributed, or offered through any API or export as a standalone dataset. The application is not a keyword research product.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab All OAuth credentials are encrypted at rest with AES-256-GCM before being written to the database.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab The application is multi-tenant, and every database query is scoped by account identifier. An automated test in our continuous integration pipeline verifies that every server action enforces this isolation.\par
+\pard\sb280\sa120\f0\fs26\b 6. What the application does not do\b0\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab It does not create or manage advertising campaigns of any kind.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab It does not perform any mutate operation against the Google Ads API.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab It does not access accounts other than the one configured by us as the data source for search volume.\par
+\pard\fi-280\li560\sa100\f0\fs22 \bullet\tab It does not provide any interface through which a third party could query Google Ads data.\par
+\pard\sb280\sa120\f0\fs26\b 7. Intended audience\b0\par
+\pard\sa160\f0\fs22 Small and medium local businesses in Brazil - clinics, restaurants, salons, workshops and service providers - and the marketing agencies that manage those profiles on their behalf. For the business owner, search volume answers a practical question: which of the terms I care about are actually searched, and where should I focus my effort on the profile.\par
+}

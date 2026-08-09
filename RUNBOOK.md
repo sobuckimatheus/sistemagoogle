@@ -29,6 +29,7 @@ Rotas de cron, todas protegidas por `CRON_SECRET` no header
 | `/api/cron/snapshot-concorrentes` | semanal, seg 07:00 | snapshot dos concorrentes |
 | `/api/cron/publicar-agendados` | de hora em hora | publica posts agendados |
 | `/api/cron/monitor-jobs` | diária, 12:00 | alerta se um negócio parou de sincronizar |
+| `/api/cron/volume-keywords` | mensal, dia 1º 05:00 | revalida o volume de busca na fonte configurada |
 
 Disparo manual:
 
@@ -86,11 +87,154 @@ de Redirect URLs permitidas do projeto, senão o link volta para a home.
 | Google Business Profile | cota por projeto | requisições/minuto no sync de contas grandes |
 | Places API (New) | por consulta | snapshot semanal de concorrentes |
 | SerpApi | 100 buscas/mês no grátis | Análise de Mercado |
-| DataForSEO | pré-pago, exige billing ativo | volume de palavras-chave |
+| Google Ads (Keyword Planner) | operações/dia, sem custo por consulta | volume de palavras-chave |
+| Mangools (KWFinder) | keyword lookups do plano | volume, quando é a fonte ativa |
 | Anthropic | por token | gerações de texto |
 
 O rate limiting da aplicação (`src/lib/rate-limit.ts`) protege por conta e por
-hora: SerpApi 10, Places 30, IA 40. Ajuste os números lá — é o único lugar.
+hora: SerpApi 10, Places 30, IA 40, volume de busca 12. Ajuste os números lá —
+é o único lugar.
+
+### 3.0 Escolha da fonte de volume
+
+`VOLUME_PROVIDER` decide: `google-ads` ou `mangools`. Em branco, usa o Google
+Ads quando configurado e cai no Mangools. Nenhuma fonte configurada não é erro
+— a tela mostra "volume indisponível" e o resto do módulo funciona.
+
+| Fonte | Burocracia | Custo | Precisão |
+|---|---|---|---|
+| Google Ads | MCC + aprovação do developer token | zero | média fechada, com conta que investe |
+| Mangools (KWFinder) | só a chave de API | plano da conta (há plano gratuito) | número público do Planner, arredondado |
+
+O Mangools é ponte, não destino: ele revende o mesmo dado do Keyword Planner,
+mas a versão pública dele. Quando o developer token sair, troque
+`VOLUME_PROVIDER` para `google-ads` — nada mais muda.
+
+Verificação, para qualquer uma das duas:
+
+```bash
+pnpm volume:testar
+pnpm volume:testar "pizzaria bh"
+```
+
+**Mangools:** o token aparece em `mangools.com/api-token` mesmo no plano
+gratuito, mas o que varia entre planos é o limite de *keyword lookups* — 401 e
+403 costumam ser plano sem acesso à API, e 429 é limite atingido. Requisição
+idêntica dentro de 24h não conta de novo, então repita a mesma consulta ao
+depurar em vez de variar o termo.
+
+### 3.1 Google Ads (Keyword Planner)
+
+O destino. Quatro variáveis:
+`GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CUSTOMER_ID`,
+`GOOGLE_ADS_REFRESH_TOKEN` e, quando a conta é gerenciada por uma MCC,
+`GOOGLE_ADS_LOGIN_CUSTOMER_ID`. O client OAuth é o mesmo do resto
+(`GOOGLE_CLIENT_ID`/`SECRET`), mas o refresh token é próprio, com escopo
+`https://www.googleapis.com/auth/adwords`.
+
+Três armadilhas, em ordem de frequência:
+
+1. **Developer token em nível Explorer.** O token sai automaticamente nesse
+   nível, e ele **não** libera o Keyword Planner: a resposta é 403 com
+   `DEVELOPER_TOKEN_NOT_APPROVED` e a mensagem "not allowed for use with
+   explorer access". Peça **acesso básico** em Ferramentas e configurações →
+   Central de API, na MCC. Nenhum ajuste de configuração contorna isso.
+
+   Cuidado para não confundir os dois 403 possíveis: com `login-customer-id`
+   preenchido, um gerente que ainda não gerencia a conta responde
+   `USER_PERMISSION_DENIED`, que **mascara** o erro do token. Para saber qual
+   é qual, teste sem o `login-customer-id` — se o usuário tem acesso direto à
+   conta (confira em `customers:listAccessibleCustomers`), ele nem é
+   necessário.
+2. **Precisão depende do investimento.** Conta sem gasto relevante recebe
+   faixas ("1 mil – 10 mil") em vez da média fechada. É por isso que a conta
+   configurada aqui deve ser a que de fato investe, não uma conta limpa criada
+   para a integração.
+3. **Versão da API expira.** `VERSAO` em `src/lib/google/ads.ts` e em
+   `scripts/testar-volume.ts` (hoje `v21`)
+   é aposentada em cerca de um ano e a chamada passa a responder 404
+   `UNSUPPORTED_VERSION`. É o motivo mais comum de uma integração que
+   funcionava parar sozinha — confira a versão antes de suspeitar de
+   credencial.
+
+Volume nulo na tela não é necessariamente erro: o Google não tem dado para todo
+termo, e `volumeSyncedAt` avança mesmo assim para o job não reconsultar o mesmo
+termo eternamente.
+
+### 3.2 Como obter as credenciais do Google Ads
+
+Ordem importa: sem MCC não existe Central de API, e sem developer token
+aprovado o refresh token não serve para nada.
+
+**1. Conta de administrador (MCC), se ainda não houver**
+
+A Central de API só aparece em conta de administrador. Se a conta que investe é
+avulsa, crie uma MCC em `ads.google.com/home/tools/manager-accounts` e vincule
+a conta existente a ela (na MCC: Contas → Vincular conta existente; o dono da
+conta aceita o convite). Nada muda nas campanhas.
+
+**2. Developer token**
+
+Na MCC: Ferramentas e configurações → Configuração → **Central de API**. O
+token aparece na hora, com nível **Teste** — que responde apenas sobre contas
+de teste e devolve dado irreal. Na mesma tela, solicite **Acesso básico**: é um
+formulário sobre a empresa e o uso pretendido. Descreva o uso real (ferramenta
+interna que consulta volume de busca do Keyword Planner para clientes da
+agência). A aprovação costuma levar de um a alguns dias úteis; conta com
+investimento ativo ajuda.
+
+→ `GOOGLE_ADS_DEVELOPER_TOKEN`
+
+**3. Customer IDs**
+
+O número de 10 dígitos no topo da tela do Google Ads, no formato
+`123-456-7890`. **Grave só os dígitos.**
+
+- `GOOGLE_ADS_CUSTOMER_ID` — a conta que será consultada, que deve ser a que
+  investe (é o gasto dela que destrava a média fechada).
+- `GOOGLE_ADS_LOGIN_CUSTOMER_ID` — o id da **MCC**, obrigatório quando a conta
+  acima é gerenciada por ela. Conta avulsa não precisa.
+
+**4. Habilitar a API e preparar o client OAuth**
+
+No mesmo projeto do Google Cloud que já usa o Business Profile:
+
+1. APIs e Serviços → Biblioteca → ative **Google Ads API**.
+2. Tela de consentimento OAuth → adicione o escopo
+   `https://www.googleapis.com/auth/adwords`.
+3. Credenciais → o client OAuth existente → em URIs de redirecionamento
+   autorizados, adicione `https://developers.google.com/oauthplayground`.
+
+⚠️ **Se a tela de consentimento estiver em "Testing", o refresh token expira em
+7 dias** e a integração morre sozinha em uma semana. Publique o app (status
+"Em produção") antes de gerar o token definitivo.
+
+**5. Refresh token**
+
+Em `developers.google.com/oauthplayground`:
+
+1. Engrenagem → marque **Use your own OAuth credentials** → cole o
+   `GOOGLE_CLIENT_ID` e o `GOOGLE_CLIENT_SECRET`.
+2. Passo 1: em vez de escolher da lista, digite o escopo
+   `https://www.googleapis.com/auth/adwords` → **Authorize APIs**.
+3. Entre com a conta Google que **tem acesso à conta de Ads** — não é
+   necessariamente a mesma do Business Profile.
+4. Passo 2: **Exchange authorization code for tokens** → copie o
+   *refresh token*.
+
+→ `GOOGLE_ADS_REFRESH_TOKEN`
+
+**6. Conferir**
+
+```bash
+pnpm volume:testar                 # termo padrão
+pnpm volume:testar "pizzaria bh"   # termo específico
+```
+
+O script renova o token, faz a chamada real e traduz os erros comuns em causa
+provável (token em nível de teste, escopo errado, versão aposentada, id com
+hífen). Se o volume vier sempre redondo — 1000, 10000 —, é a conta sem gasto
+suficiente, não bug.
 
 **Quando a cota estourar:** o cliente HTTP (`src/lib/http.ts`) trata 429 com
 backoff e não derruba o job. Um 429 recorrente aparece no log da Vercel com o
@@ -174,7 +318,8 @@ Ordem importa: rotacione, atualize a env, **depois** reimplante.
 | Senha do banco | Supabase → Database → Reset password | atualizar `DATABASE_URL` **e** `DIRECT_URL` |
 | `CRON_SECRET` | `openssl rand -hex 32` | crons falham com 401 até o redeploy |
 | `ENCRYPTION_KEY` | `openssl rand -base64 32` | **destrutivo**: torna ilegível todo token OAuth já gravado; todos os clientes precisam reconectar. Ver 5.1 |
-| Chaves Google/SerpApi/DataForSEO/Anthropic | console de cada provedor | nenhum, se trocado sem intervalo |
+| Chaves Google/SerpApi/Anthropic | console de cada provedor | nenhum, se trocado sem intervalo |
+| `GOOGLE_ADS_REFRESH_TOKEN` | OAuth Playground, escopo `adwords` | revogar o antigo no Google só depois do deploy |
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys | revogar a antiga só depois do deploy |
 | Service role do Supabase | Supabase → API | ignora RLS: trate como senha do banco |
 

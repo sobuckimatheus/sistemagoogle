@@ -35,6 +35,12 @@ export const LIMITES = {
   places: { recurso: "places", maximo: 30, janelaMinutos: 60 },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */
   ia: { recurso: "ia", maximo: 40, janelaMinutos: 60 },
+  /**
+   * Volume de busca, qualquer que seja a fonte. O botão de "atualizar
+   * volumes" é fácil de martelar sem que o número mude — o dado é uma média
+   * mensal —, e no Mangools cada consulta consome lookup do plano.
+   */
+  volume: { recurso: "volume", maximo: 12, janelaMinutos: 60 },
 } as const satisfies Record<string, Limite>;
 
 export type ResultadoCota =

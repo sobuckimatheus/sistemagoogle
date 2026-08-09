@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "stripe:precos": "tsx --env-file=.env scripts/precos-stripe.ts",
+    "volume:testar": "tsx --env-file=.env scripts/testar-volume.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

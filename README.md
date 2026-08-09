@@ -22,7 +22,7 @@ pnpm dev
 
 O app não sobe sem as variáveis obrigatórias — a validação em `src/lib/env/`
 falha no boot dizendo exatamente qual está faltando. As integrações que ainda
-não têm credencial (Google, SerpApi, DataForSEO, Anthropic, Stripe) estão como
+não têm credencial (Google, SerpApi, Google Ads, Anthropic, Stripe) estão como
 opcionais e passam a ser exigidas conforme cada épica avança.
 
 ## Duas conexões com o banco, de propósito
@@ -65,7 +65,7 @@ build sem acesso aos segredos, nunca para runtime.
 ```
 prisma/
   schema.prisma       25 models: multi-tenant, OAuth, série histórica, billing
-  migrations/         0_init, 1_defaults, 2_seed, 3_lacunas, 4_billing
+  migrations/         0_init, 1_defaults, 2_seed, 3_lacunas, 4_billing, 5_rate_limit
 sql/                  os mesmos SQL aplicados manualmente + verificação
 src/
   app/                rotas (App Router)
@@ -79,6 +79,8 @@ src/
     prisma.ts         client singleton com driver adapter
     supabase/         clients de browser, server e middleware
     sync/             sincronização, alertas e registro de execução dos jobs
+    volume/           fontes de volume de busca, trocáveis por env
+    billing/          Stripe, planos e regras de acesso por assinatura
   middleware.ts       renovação de sessão e proteção de rotas
 ```
 
@@ -99,6 +101,22 @@ falha que ninguém percebe: job que quebra grava FAILED e gera alerta, job que
 para de ser agendado não gera nada e a tela segue mostrando dado velho como se
 fosse de hoje. Aponte também um monitor externo para essa rota — um vigia que
 depende do mesmo cron que ele vigia não vigia nada.
+
+## Volume de busca
+
+`Keyword.volume` vem do Keyword Planner do Google. A fonte é trocável por
+`VOLUME_PROVIDER` (`src/lib/volume/`): a API do Google Ads é o destino — dado
+de origem, e a única que abre a média fechada para contas com investimento
+ativo — e o Mangools serve de ponte enquanto o developer token não é
+aprovado, ao custo de receber o número público do Planner, arredondado.
+
+Isso **não** substitui o SerpApi, que faz outra coisa: posição no Maps para a
+Análise de Mercado. Volume e ranking são dados diferentes, não fontes
+concorrentes.
+
+O volume é buscado na criação do termo, por um botão manual e pelo job mensal
+`/api/cron/volume-keywords` — o Keyword Planner publica média mensal, então
+consultar com mais frequência gastaria operação para reescrever o mesmo número.
 
 ## Limites de uso
 

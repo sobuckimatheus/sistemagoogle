@@ -7,6 +7,7 @@ import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { IaIndisponivelError, sugerirPalavrasChave } from "@/lib/ia";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, LIMITES } from "@/lib/rate-limit";
+import { atualizarVolumes } from "@/lib/sync/volume";
 
 export type EstadoKeywords =
   | { ok: string }
@@ -59,6 +60,14 @@ export async function adicionarPalavra(
     // comportamento esperado ao colar uma lista com duplicatas.
     skipDuplicates: true,
   });
+
+  // Busca o volume dos termos recém-criados. Falha aqui não desfaz nada: o
+  // termo vale por si, o volume é enriquecimento.
+  const criados = await prisma.keyword.findMany({
+    where: { businessId, term: { in: termos }, volumeSyncedAt: null },
+    select: { id: true },
+  });
+  await atualizarVolumes(criados.map((k) => k.id));
 
   revalidatePath(`/negocio/${businessId}/palavras-chave`);
   return { ok: `${termos.length} termo(s) adicionado(s).` };
@@ -117,4 +126,46 @@ export async function sugerirComIa(
     }
     return { erro: (erro as Error).message };
   }
+}
+
+/**
+ * Atualiza o volume de busca de todos os termos do negócio, sob demanda.
+ *
+ * Existe porque o job mensal é lento demais para quem acabou de configurar a
+ * conta de Ads e quer ver o número aparecer.
+ */
+export async function revalidarVolumes(
+  _anterior: EstadoKeywords,
+  formData: FormData,
+): Promise<EstadoKeywords> {
+  const { conta } = await exigirContaAtiva();
+  const businessId = String(formData.get("businessId") ?? "");
+  await exigirNegocioDaConta(businessId, conta.id);
+
+  const bloqueio = await bloqueioDeEscrita(conta.id);
+  if (bloqueio) return { erro: bloqueio };
+
+  const cota = await consumirCota(LIMITES.volume, conta.id);
+  if (!cota.permitido) return { erro: cota.mensagem };
+
+  const palavras = await prisma.keyword.findMany({
+    where: { businessId, active: true },
+    select: { id: true },
+  });
+
+  if (palavras.length === 0) return { erro: "Nenhum termo para atualizar." };
+
+  const resultado = await atualizarVolumes(palavras.map((p) => p.id));
+
+  revalidatePath(`/negocio/${businessId}/palavras-chave`);
+
+  if (resultado.erro) return { erro: resultado.erro };
+
+  return {
+    ok:
+      `${resultado.atualizados} termo(s) com volume via ${resultado.fonte}` +
+      (resultado.semDado > 0
+        ? `; ${resultado.semDado} sem dado na fonte.`
+        : "."),
+  };
 }

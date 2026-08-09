@@ -281,7 +281,7 @@ model Keyword {
   businessId     String
   business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   term           String
-  volume         Int? // buscas/mês (DataForSEO), cache mensal
+  volume         Int? // média de buscas/mês (Keyword Planner do Google Ads)
   volumeSyncedAt DateTime?
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now())

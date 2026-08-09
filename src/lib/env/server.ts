@@ -7,7 +7,7 @@ import { z } from "zod";
 /**
  * Variáveis de servidor: segredos que nunca podem chegar ao navegador.
  *
- * As integrações sem credencial ainda (Google, SerpApi, DataForSEO, Anthropic,
+ * As integrações sem credencial ainda (Google, SerpApi, Google Ads, Anthropic,
  * Stripe) são opcionais de propósito — o app precisa subir antes delas
  * existirem. Conforme cada épica avançar, mova a variável para obrigatória.
  */
@@ -31,8 +31,23 @@ const serverSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
   SERPAPI_KEY: z.string().optional(),
-  DATAFORSEO_LOGIN: z.string().optional(),
-  DATAFORSEO_PASSWORD: z.string().optional(),
+
+  // Volume de busca pelo Keyword Planner. Usa o mesmo client OAuth
+  // (GOOGLE_CLIENT_ID/SECRET) com escopo `adwords` e um refresh token próprio
+  // da conta de Ads — a autorização é da agência, não do cliente final.
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().optional(),
+  GOOGLE_ADS_CUSTOMER_ID: z.string().optional(),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().optional(),
+  GOOGLE_ADS_REFRESH_TOKEN: z.string().optional(),
+
+  // Fonte do volume de busca. Sem valor explícito, usa Google Ads quando
+  // configurado e cai no Mangools como ponte.
+  VOLUME_PROVIDER: z.enum(["google-ads", "mangools"]).optional(),
+  MANGOOLS_API_TOKEN: z.string().optional(),
+  // Alvo geográfico e idioma, nos mesmos identificadores do Google.
+  // Padrão: 2076 (Brasil) e 1014 (português).
+  VOLUME_LOCATION_ID: z.string().optional(),
+  VOLUME_LANGUAGE_ID: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import {
   adicionarPalavra,
   removerPalavra,
+  revalidarVolumes,
   sugerirComIa,
   type EstadoKeywords,
 } from "./acoes";
@@ -39,15 +40,24 @@ export function PainelPalavrasChave({
     null,
   );
 
+  const [estadoVolume, acaoVolume, atualizandoVolume] = useActionState<
+    EstadoKeywords,
+    FormData
+  >(revalidarVolumes, null);
+
   const sugestoes =
     estadoIa && "sugestoes" in estadoIa ? estadoIa.sugestoes : [];
 
   const mensagem =
     (estadoAdd && "erro" in estadoAdd && estadoAdd.erro) ||
     (estadoIa && "erro" in estadoIa && estadoIa.erro) ||
+    (estadoVolume && "erro" in estadoVolume && estadoVolume.erro) ||
     null;
 
-  const sucesso = estadoAdd && "ok" in estadoAdd ? estadoAdd.ok : null;
+  const sucesso =
+    (estadoAdd && "ok" in estadoAdd && estadoAdd.ok) ||
+    (estadoVolume && "ok" in estadoVolume && estadoVolume.ok) ||
+    null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,9 +158,25 @@ export function PainelPalavrasChave({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">
-          Termos monitorados ({palavras.length})
-        </h2>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-sm font-medium">
+            Termos monitorados ({palavras.length})
+          </h2>
+          {palavras.length > 0 && (
+            <form action={acaoVolume}>
+              <input type="hidden" name="businessId" value={businessId} />
+              <button
+                type="submit"
+                disabled={atualizandoVolume}
+                className="text-xs text-neutral-500 underline disabled:opacity-50"
+              >
+                {atualizandoVolume
+                  ? "Consultando o Google Ads…"
+                  : "Atualizar volumes"}
+              </button>
+            </form>
+          )}
+        </div>
         {palavras.length === 0 ? (
           <p className="text-sm text-neutral-500">
             Nenhum termo ainda. Eles são a base do rastreamento de posição.
@@ -181,9 +207,12 @@ export function PainelPalavrasChave({
           </ul>
         )}
         <p className="text-xs text-neutral-500">
-          O volume de busca vem do DataForSEO e é atualizado mensalmente —
-          exige conta com billing ativo. Sem ele os termos continuam servindo
-          para o rastreamento de posição.
+          O volume é a média de buscas por mês, revalidada mensalmente. A
+          origem é sempre o Keyword Planner do Google — direto pela API do
+          Google Ads, quando configurada, ou por um provedor intermediário. Só
+          a conta do Ads com investimento ativo abre o número fechado; as
+          demais fontes entregam valores arredondados. Termo sem volume
+          continua valendo para o rastreamento de posição.
         </p>
       </section>
     </div>

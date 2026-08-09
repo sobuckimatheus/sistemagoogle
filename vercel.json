@@ -3,6 +3,7 @@
     { "path": "/api/cron/sync-diario", "schedule": "0 6 * * *" },
     { "path": "/api/cron/snapshot-concorrentes", "schedule": "0 7 * * 1" },
     { "path": "/api/cron/publicar-agendados", "schedule": "0 * * * *" },
-    { "path": "/api/cron/monitor-jobs", "schedule": "0 12 * * *" }
+    { "path": "/api/cron/monitor-jobs", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/volume-keywords", "schedule": "0 5 1 * *" }
   ]
 }
