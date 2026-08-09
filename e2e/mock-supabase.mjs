@@ -109,6 +109,14 @@ const servidor = createServer(async (req, res) => {
     return responder(res, 200, { ...sessao(user) });
   }
 
+  // Recuperação de senha. O Supabase responde 200 mesmo para e-mail que não
+  // existe — é o que permite à tela dar sempre a mesma resposta e não virar um
+  // verificador de quem é cliente. O mock preserva esse comportamento.
+  if (rota === "/auth/v1/recover" && req.method === "POST") {
+    await lerCorpo(req);
+    return responder(res, 200, {});
+  }
+
   if (rota === "/auth/v1/user") {
     const token = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     const user = sessoes.get(token);

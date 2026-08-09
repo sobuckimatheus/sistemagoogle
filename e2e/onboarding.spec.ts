@@ -63,7 +63,10 @@ test("a sessão sobrevive à navegação entre módulos", async ({ page }) => {
   await expect(page.getByText(email)).toBeVisible();
 
   await page.getByRole("link", { name: /ver planos e faturas/i }).click();
-  await expect(page.getByRole("heading", { name: "Plano" })).toBeVisible();
+  // `exact` porque a mesma tela tem o título "Plano" e a seção "Planos".
+  await expect(
+    page.getByRole("heading", { name: "Plano", exact: true }),
+  ).toBeVisible();
 });
 
 test("sair encerra a sessão e protege as rotas privadas", async ({ page }) => {

@@ -25,7 +25,6 @@ export default withSentryConfig(nextConfig, {
   // bloqueadores de anúncio não descartem os relatórios de erro.
   tunnelRoute: "/monitoring",
 
-  // O SDK instrumenta o Prisma e outras libs de servidor; deixar o Next
-  // empacotá-las quebra a instrumentação.
-  disableLogger: true,
+  // Remove os logs de depuração do SDK do bundle de produção.
+  webpack: { treeshake: { removeDebugLogging: true } },
 });
