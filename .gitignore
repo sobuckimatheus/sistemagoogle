@@ -30,3 +30,8 @@ prisma/generated/
 .DS_Store
 *.pem
 *.log
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/

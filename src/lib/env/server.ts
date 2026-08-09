@@ -52,6 +52,9 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // Observabilidade. Sem DSN, o SDK nem é inicializado.
+  SENTRY_DSN: z.string().optional(),
+
   RESEND_API_KEY: z.string().optional(),
   // Remetente dos e-mails transacionais. Precisa ser de um domínio verificado
   // no provedor; o padrão só funciona em teste.

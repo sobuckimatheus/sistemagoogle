@@ -7,3 +7,6 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+  # Baixa o binário usado para enviar source maps no build. Sem ele, um build
+  # com SENTRY_AUTH_TOKEN configurado falharia na hora do upload.
+  '@sentry/cli': true

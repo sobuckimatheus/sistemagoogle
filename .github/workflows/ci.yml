@@ -82,3 +82,63 @@ jobs:
       - run: pnpm exec prisma generate
 
       - run: pnpm test:integration
+
+  # E2E (E10-03): navegador de verdade contra o app compilado, com Postgres
+  # efêmero e um Supabase Auth de mentira. Nenhuma API externa é chamada.
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: painel
+          POSTGRES_PASSWORD: painel
+          POSTGRES_DB: painel_e2e_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://painel:painel@localhost:5432/painel_e2e_test
+      DIRECT_URL: postgresql://painel:painel@localhost:5432/painel_e2e_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+      - run: pnpm exec prisma migrate deploy
+
+      - run: pnpm exec playwright install chromium --with-deps
+
+      # O build precisa das mesmas variáveis públicas que o servidor de teste
+      # usa: NEXT_PUBLIC_ é embutida em tempo de build, não lida em runtime.
+      - run: pnpm build
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-de-teste
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
