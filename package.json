@@ -14,7 +14,8 @@
     "stripe:precos": "tsx --env-file=.env scripts/precos-stripe.ts",
     "volume:testar": "tsx --env-file=.env scripts/testar-volume.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

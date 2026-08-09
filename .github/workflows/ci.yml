@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, lacunas-billing-qualidade]
   pull_request:
 
 jobs:
@@ -38,3 +38,47 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "1"
           DIRECT_URL: postgresql://user:pass@localhost:5432/placeholder
+
+  # Suíte de integração (E10-02): Postgres efêmero, criado e destruído com o
+  # job. Nunca toca banco de verdade — o setup recusa host que não seja local
+  # e banco cujo nome não contenha "test".
+  integracao:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: painel
+          POSTGRES_PASSWORD: painel
+          POSTGRES_DB: painel_test
+        ports:
+          - 5432:5432
+        # Sem o healthcheck, os testes começam antes de o Postgres aceitar
+        # conexão e falham por P1001 sem relação com o código.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://painel:painel@localhost:5432/painel_test
+      DIRECT_URL: postgresql://painel:painel@localhost:5432/painel_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+
+      - run: pnpm test:integration
