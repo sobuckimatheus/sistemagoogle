@@ -88,6 +88,10 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
 
+    # Necessário para o passo que publica o diagnóstico da falha.
+    permissions:
+      contents: write
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -134,7 +138,44 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-de-teste
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
 
-      - run: pnpm test:e2e
+      - name: Rodar E2E
+        run: |
+          set -o pipefail
+          pnpm test:e2e 2>&1 | tee /tmp/e2e.log
+
+      # Publica a saída como comentário do commit quando falha.
+      #
+      # O log do job e os artefatos exigem autenticação para leitura, mesmo em
+      # repositório público — então, sem isto, uma falha de E2E só é
+      # diagnosticável por quem tem acesso ao painel do GitHub. O comentário é
+      # legível pela API pública e some junto com o commit.
+      - name: Publicar diagnóstico da falha
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+
+          with open("/tmp/e2e.log", errors="replace") as f:
+              log = f.read()[-50000:]
+
+          corpo = f"### E2E falhou\n\n```\n{log}\n```"
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPO']}/commits/{os.environ['SHA']}/comments",
+              data=json.dumps({"body": corpo}).encode(),
+              headers={
+                  "authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "accept": "application/vnd.github+json",
+                  "content-type": "application/json",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req) as r:
+              print("comentário publicado:", r.status)
+          PY
 
       - uses: actions/upload-artifact@v4
         if: failure()
