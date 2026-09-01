@@ -68,7 +68,7 @@ export function VerificadorPublico() {
           disabled={verificando || !negocio}
           className="rounded-lg bg-neutral-900 px-6 py-3.5 text-base font-semibold text-white transition disabled:opacity-40 dark:bg-white dark:text-neutral-900"
         >
-          {verificando ? "Medindo sua região…" : "Ver minha visibilidade grátis"}
+          {verificando ? "Medindo sua região…" : "Ver minha posição grátis"}
         </button>
 
         <p className="text-center text-xs text-neutral-500">
@@ -94,11 +94,15 @@ export function VerificadorPublico() {
 /**
  * O resultado é a peça de venda.
  *
- * A manchete é a **visibilidade**: quanto da região enxerga o negócio. Ela
- * substitui a posição medida do endereço dele, que dá sempre primeiro lugar —
- * a distância é zero e o Maps ordena por proximidade além de relevância.
- * "Você é o primeiro" não vende nada; "só 31% da sua região te encontra" é a
- * dor, e é verdade.
+ * A manchete é a **posição média na região**, não a posição medida do
+ * endereço do próprio negócio — essa dá sempre primeiro lugar, porque a
+ * distância é zero e o Maps ordena por proximidade além de relevância.
+ * "Você é o primeiro" não vende nada; "você é, em média, o 15º" é a dor, e é
+ * verdade.
+ *
+ * Uma posição só, e não três. A posição típica e a da porta existiam nos
+ * bastidores da medição, mas na tela competiam pela atenção com o número que
+ * importa.
  */
 function Resultado({
   estado,
@@ -106,8 +110,9 @@ function Resultado({
   estado: Extract<EstadoVerificacao, { tipo: "resultado" }>;
 }) {
   const m = estado.medicao;
-  const porcentagem = Math.round(m.visibilidade * 100);
-  const fraco = porcentagem < 50;
+  // Fora do top 3 é onde a lista do Maps já exige um clique a mais para ser
+  // vista — é o limite prático de quem é encontrado.
+  const fraco = m.posicaoMedia === null || m.posicaoMedia > 3;
   const ausente = m.pontosComMercado - m.pontosOndeAparece;
 
   return (
@@ -125,23 +130,11 @@ function Resultado({
 
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium uppercase tracking-wide text-neutral-500">
-            Sua visibilidade na região
+            Sua posição média na região
           </span>
           <p className="text-5xl font-bold tabular-nums sm:text-6xl">
-            {porcentagem}%
+            {m.posicaoMedia ? `${m.posicaoMedia}º` : "não aparece"}
           </p>
-        </div>
-
-        {/* Barra como leitura imediata: o número sozinho não diz se é bom. */}
-        <div
-          className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
-          role="img"
-          aria-label={`Visibilidade de ${porcentagem} por cento`}
-        >
-          <div
-            className={`h-full rounded-full ${fraco ? "bg-amber-500" : "bg-green-600"}`}
-            style={{ width: `${Math.max(porcentagem, 2)}%` }}
-          />
         </div>
 
         <p className="text-lg">
@@ -153,44 +146,18 @@ function Resultado({
             </>
           ) : (
             <>
-              Você aparece em todos os {m.pontosComMercado} pontos medidos, mas
-              a posição varia conforme o bairro de quem procura.
+              Você aparece nos {m.pontosComMercado} pontos medidos, mas a
+              posição muda conforme o bairro de quem procura.
             </>
           )}
         </p>
 
-        <dl className="mt-1 flex flex-col divide-y divide-neutral-200 border-t border-neutral-200 text-sm dark:divide-neutral-800 dark:border-neutral-800">
-          <div className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-neutral-600 dark:text-neutral-400">
-              Posição média na região
-            </dt>
-            <dd className="font-semibold tabular-nums">
-              {m.posicaoMedia ? `${m.posicaoMedia}º` : "não aparece"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-neutral-600 dark:text-neutral-400">
-              Onde aparece, costuma ser
-            </dt>
-            <dd className="font-semibold tabular-nums">
-              {m.posicaoTipica ? `${m.posicaoTipica}º lugar` : "—"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-neutral-600 dark:text-neutral-400">
-              Na porta da sua empresa
-            </dt>
-            <dd className="font-semibold tabular-nums">
-              {m.naPorta ? `${m.naPorta}º lugar` : "não aparece"}
-            </dd>
-          </div>
-        </dl>
-
         <p className="text-xs text-neutral-500">
-          Medimos {m.totalPontos} pontos espalhados pela sua região, porque a
-          posição no Maps muda conforme de onde a pessoa procura. Pontos sem
-          nenhum resultado — área sem esse tipo de negócio — ficam de fora da
-          conta.
+          Média das posições em {m.totalPontos} pontos espalhados pela sua
+          região — a posição no Maps muda conforme de onde a pessoa procura, e
+          medir de um ponto só não diz nada. Onde você não aparece entre os 20
+          primeiros, contamos como 21º. Pontos sem nenhum resultado, área sem
+          esse tipo de negócio, ficam de fora da conta.
         </p>
       </div>
 
@@ -247,24 +214,24 @@ function Resultado({
         </p>
       </div>
 
-      <ChamadaParaAcao visibilidade={porcentagem} />
+      <ChamadaParaAcao posicaoMedia={m.posicaoMedia} />
     </section>
   );
 }
 
-function ChamadaParaAcao({ visibilidade }: { visibilidade: number }) {
-  const fraco = visibilidade < 50;
+function ChamadaParaAcao({ posicaoMedia }: { posicaoMedia: number | null }) {
+  const fraco = posicaoMedia === null || posicaoMedia > 3;
 
   return (
     <div className="flex flex-col gap-5 rounded-2xl bg-neutral-900 p-6 text-white dark:bg-white dark:text-neutral-900 sm:p-8">
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">
           {fraco
-            ? `${100 - visibilidade}% da sua região procura e encontra outro.`
-            : "Descobrir a visibilidade foi a parte fácil. Mantê-la é o trabalho."}
+            ? "Quem procura primeiro, encontra outro."
+            : "Descobrir a posição foi a parte fácil. Mantê-la é o trabalho."}
         </h2>
         <p className="text-sm opacity-80">
-          Visibilidade é resultado de coisas que dá para medir e corrigir:
+          Posição no Maps é resultado de coisas que dá para medir e corrigir:
           perfil completo, avaliações respondidas, publicações frequentes e as
           palavras certas na descrição. O Painel GBP acompanha tudo isso todo
           dia e diz, em ordem, o que corrigir primeiro.
@@ -273,7 +240,7 @@ function ChamadaParaAcao({ visibilidade }: { visibilidade: number }) {
 
       <ul className="flex flex-col gap-2 text-sm">
         {[
-          "Acompanhamento diário da sua visibilidade e da nota do perfil",
+          "Acompanhamento diário da sua posição e da nota do perfil",
           "Lista priorizada do que está te segurando, com link direto para resolver",
           "Rascunhos de resposta às avaliações, escritos por IA e revisados por você",
           "Comparativo com os concorrentes que aparecem à sua frente",

@@ -42,12 +42,12 @@ export function PaginaIsca() {
             Grátis · sem cadastro
           </span>
           <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
-            Quanto da sua região encontra sua empresa no Google?
+            Em que posição sua empresa aparece no Google?
           </h1>
           <p className="mx-auto max-w-xl text-base text-neutral-600 dark:text-neutral-400 sm:text-lg">
-            Medimos 25 pontos espalhados pela sua cidade e mostramos em quantos
-            deles você aparece quando alguém procura o serviço que você vende —
-            e quem aparece no seu lugar.
+            Medimos 25 pontos espalhados pela sua cidade e mostramos a posição
+            média em que você aparece quando alguém procura o serviço que você
+            vende — e quem aparece antes.
           </p>
         </section>
 
