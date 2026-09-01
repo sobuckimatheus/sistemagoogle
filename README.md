@@ -172,11 +172,18 @@ cantos a 4,2 km) e calcula duas coisas:
 
 - **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
   mercado; ausência conta zero.
-- **Posição média** — média das posições, contando ausência como 21, exibida
-  como **número inteiro**. Usa o piso, não o arredondamento: quem tem média
-  3,7 aparece em terceiro na maioria das buscas, e promovê-lo a "4º"
-  descreveria pior a experiência de quem procura. A média com fração fica
-  guardada no histórico, onde ainda serve para comparar duas medições.
+- **Posição na região** — a colocação do negócio no ranking regional: todos os
+  concorrentes recebem a média das posições deles nos mesmos 25 pontos, a
+  lista é ordenada por essa média e então numerada 1, 2, 3…
+
+**A manchete é a colocação na própria lista que a tela mostra** — literalmente
+o mesmo número, então não há como divergirem. Duas tentativas anteriores
+falharam nisso: a lista vinha de um ponto só (o negócio aparecia em 1º com
+manchete 14º), e depois exibia a média arredondada (várias linhas seguidas com
+"12º", como se fossem empate).
+
+A média com fração fica guardada no histórico, onde serve para comparar duas
+medições — entre 3,2 e 3,8 há progresso que o inteiro esconderia.
 
 Pontos onde o Google não devolve resultado nenhum ficam **fora da conta**:
 área sem esse tipo de negócio não é culpa de quem está sendo medido, e contar

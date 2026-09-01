@@ -56,19 +56,19 @@ export type PontoDaGrade = {
 
 export type MedicaoEmGrade = {
   /**
-   * Posição média na região, contando ausência como 21 — **inteira**.
+   * Posição do negócio no ranking regional — **a manchete**.
    *
-   * É o número de manchete. Difere da posição "na porta" de propósito: aquela
-   * é sempre boa e não informa nada.
+   * É a colocação dele entre os concorrentes quando todos são medidos nos
+   * mesmos 25 pontos: 1º é quem o cliente da região mais encontra.
    *
-   * Inteira porque posição quebrada não existe no mundo do cliente: ninguém é
-   * "3,7º lugar" numa lista. Usa o piso, e não o arredondamento, para não
-   * empurrar quem está em 3,7 para a quarta posição — a média exata fica em
-   * `posicaoMediaExata` para o histórico, onde a fração ainda serve para
-   * comparar duas medições.
+   * Ordinal, e não a média em si, por dois motivos. Posição quebrada não
+   * existe no mundo do cliente, e duas médias diferentes arredondadas caíam no
+   * mesmo inteiro — a lista mostrava "12º, 12º, 12º" como se fossem empate.
+   * A média continua em `posicaoMediaExata`, onde a fração serve para comparar
+   * duas medições ao longo do tempo.
    */
   posicaoMedia: number | null;
-  /** A mesma média, sem arredondar. Só para registro e comparação. */
+  /** Média das posições nos 25 pontos, sem arredondar. Para o histórico. */
   posicaoMediaExata: number | null;
   /** 0 a 1. Quanto da região enxerga o negócio, com peso maior no topo. */
   visibilidade: number;
@@ -93,24 +93,15 @@ export type MedicaoEmGrade = {
  * se contradiziam.
  */
 export type ResultadoRegional = Omit<ResultadoLocal, "posicao"> & {
-  /** Média das posições na região, inteira — mesma regra da manchete. */
+  /** Colocação no ranking regional: 1, 2, 3… sem repetir. */
   posicao: number;
-  /** A média sem arredondar, usada para ordenar sem empate artificial. */
+  /** Média das posições que gerou essa colocação. */
   posicaoExata: number;
   /** Em quantos pontos apareceu, de quantos medidos com mercado. */
   aparicoes: number;
 };
 
-/**
- * Converte média em posição de lista.
- *
- * Piso, e não arredondamento: quem tem média 3,7 aparece em terceiro na
- * maioria das buscas, e promovê-lo a "4º" descreveria pior a experiência real
- * de quem procura. O mínimo é 1 — não existe posição zero.
- */
-function posicaoInteira(media: number): number {
-  return Math.max(1, Math.floor(media));
-}
+
 
 function coordenadasDaGrade(lat: number, lng: number) {
   const meio = Math.floor(LADO / 2);
@@ -217,8 +208,16 @@ export async function medirEmGrade(
     { placeId, nome },
   );
 
+  // A manchete é a colocação dele na própria lista que a tela mostra: assim os
+  // dois números não podem divergir, porque são o mesmo número.
+  const colocacao = rankingRegional.findIndex(
+    (r) =>
+      r.placeId === placeId ||
+      r.titulo.toLowerCase() === nome.toLowerCase(),
+  );
+
   return {
-    posicaoMedia: posicaoMedia === null ? null : posicaoInteira(posicaoMedia),
+    posicaoMedia: colocacao >= 0 ? colocacao + 1 : null,
     posicaoMediaExata:
       posicaoMedia === null ? null : Math.round(posicaoMedia * 10) / 10,
     visibilidade,
@@ -277,7 +276,8 @@ function agregarRegiao(
 
     return {
       ...registro.exemplo,
-      posicao: posicaoInteira(media),
+      // Preenchido depois de ordenar: é a colocação, não a média.
+      posicao: 0,
       posicaoExata: media,
       aparicoes: registro.aparicoes,
     };
@@ -293,7 +293,7 @@ function agregarRegiao(
 
   if (!presente) {
     lista.push({
-      posicao: FORA_DA_LISTA,
+      posicao: 0,
       posicaoExata: FORA_DA_LISTA,
       aparicoes: 0,
       titulo: alvo.nome,
@@ -306,5 +306,9 @@ function agregarRegiao(
     });
   }
 
-  return lista.sort((a, b) => a.posicaoExata - b.posicaoExata);
+  // Ordena pela média e só então numera. Numerar antes de ordenar criaria
+  // empates onde há diferença real — 1,1 e 1,9 não são a mesma coisa.
+  return lista
+    .sort((a, b) => a.posicaoExata - b.posicaoExata)
+    .map((item, indice) => ({ ...item, posicao: indice + 1 }));
 }
