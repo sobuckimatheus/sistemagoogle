@@ -51,6 +51,29 @@ const ESPACAMENTO_KM = 1.5;
 /** Profundidade da busca: além disso ninguém é encontrado. */
 const FORA_DA_LISTA = 21;
 
+/**
+ * Quanto pesa não aparecer entre os 20 primeiros.
+ *
+ * Contar ausência como 21 — o mínimo aritmético — diz que sumir da lista é
+ * quase tão bom quanto ser o vigésimo. Não é: quem não aparece no top 20 não
+ * é encontrado, ponto. A penalidade maior é o que separa "está em último" de
+ * "está invisível".
+ *
+ * O valor saiu de calibração contra dois negócios reais, com o número que o
+ * Localo publica para eles no mesmo dia:
+ *
+ * | penalidade | Somare (Localo: 18) | Dra. Samantha (Localo: 3) |
+ * |---|---|---|
+ * | 21 | 10 | 3 |
+ * | 40 | 15 | 3 |
+ * | **50** | **18** | **3** |
+ *
+ * A Samantha não se move com o parâmetro porque aparece nos 25 pontos —
+ * ausência não a toca. É o que dá alguma confiança no ajuste: ele move só
+ * quem tem o problema que ele mede.
+ */
+const PENALIDADE_AUSENCIA = 50;
+
 const KM_POR_GRAU = 111.32;
 
 export type PontoDaGrade = {
@@ -186,10 +209,17 @@ export async function medirEmGrade(
   const media =
     comMercado.length === 0
       ? null
-      : comMercado.reduce((s, p) => s + (p.posicao ?? FORA_DA_LISTA), 0) /
-        comMercado.length;
+      : comMercado.reduce(
+          (s, p) => s + (p.posicao ?? PENALIDADE_AUSENCIA),
+          0,
+        ) / comMercado.length;
 
-  const posicaoMedia = media === null ? null : Math.max(1, Math.floor(media));
+  // Nunca encontrado em lugar nenhum não é "posição 50": é ausência, e a tela
+  // diz isso com palavras em vez de um número que não significa nada.
+  const posicaoMedia =
+    media === null || encontradas.length === 0
+      ? null
+      : Math.max(1, Math.floor(media));
 
   /**
    * Ponto que a lista vai mostrar: aquele onde o negócio está mais perto da

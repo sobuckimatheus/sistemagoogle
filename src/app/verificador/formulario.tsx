@@ -156,8 +156,9 @@ function Resultado({
           Média das suas posições em {m.totalPontos} pontos espalhados pela sua
           região — a posição no Maps muda conforme de onde a pessoa procura, e
           medir de um ponto só não diz nada. Onde você não aparece entre os 20
-          primeiros, contamos como 21º. Pontos sem nenhum resultado, área sem
-          esse tipo de negócio, ficam de fora da conta.
+          primeiros, o ponto conta como 50º: não ser encontrado é bem pior do
+          que ser o último da lista. Pontos sem nenhum resultado, área sem esse
+          tipo de negócio, ficam de fora da conta.
         </p>
       </div>
 

@@ -172,9 +172,24 @@ cantos a 4,2 km) e calcula duas coisas:
 
 - **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
   mercado; ausência conta zero.
-- **Posição média** — média das posições nos 25 pontos, contando ausência como
-  21, exibida pelo piso: média 3,7 vira "3º", porque é onde o cliente o
-  encontra na maioria das buscas.
+- **Posição média** — média das posições nos 25 pontos, exibida pelo piso:
+  média 3,7 vira "3º", porque é onde o cliente o encontra na maioria das
+  buscas. Onde o negócio não aparece entre os 20 primeiros, o ponto conta como
+  **50º**, não 21º: sumir da lista é muito pior do que ser o vigésimo, e contar
+  21 diria quase o contrário.
+
+A penalidade de 50 foi calibrada contra dois negócios reais, com o número que o
+Localo publica para eles no mesmo dia:
+
+| penalidade | Somare (Localo: 18) | Dra. Samantha (Localo: 3) |
+|---|---|---|
+| 21 | 10 | 3 |
+| 40 | 15 | 3 |
+| **50** | **18** | **3** |
+
+A Samantha não se move com o parâmetro porque aparece nos 25 pontos — ausência
+não a toca. É o que dá alguma confiança no ajuste: ele move só quem tem o
+problema que ele mede.
 
 **A lista abaixo do número é uma busca real do Google**, feita de um dos 25
 pontos — justamente aquele onde o negócio está na posição média dele. Assim os
