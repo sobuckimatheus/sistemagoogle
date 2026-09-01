@@ -143,50 +143,53 @@ abriria o produto inteiro.
 
 Travas contra abuso, em `src/lib/rate-limit.ts`:
 
-| Trava | Valor | Por quê |
-|---|---|---|
-| autocomplete por IP | 30/h | Places API é cobrada por consulta |
-| busca por IP | 5/h | uma pessoa não precisa de mais para se convencer |
-| **teto global** | 2.000/dia | limite por IP não segura robô: IP é barato de trocar |
+| Trava | Padrão | Variável | Por quê |
+|---|---|---|---|
+| autocomplete por IP | 30/h | `LIMITE_ANONIMO_AUTOCOMPLETE` | Places API é cobrada por consulta |
+| busca por IP | 5/h | `LIMITE_ANONIMO_BUSCA` | uma pessoa não precisa de mais para se convencer |
+| **teto global** | 300/dia | `LIMITE_ANONIMO_BUSCA_DIA` | limite por IP não segura robô: IP é barato de trocar |
 
-O teto global protege o saldo pré-pago: no pior caso o dia custa US$ 4 em vez
-de esvaziar a conta sem ninguém notar. **Se a fonte de posição voltar a ser o
-SerpApi, baixe esse número** — lá são 100 buscas por mês no plano gratuito.
+**`0` desliga a trava** — existe para a fase de testes, não para produção
+aberta. Vazio usa o padrão.
+
+O teto global protege o saldo pré-pago. Cada verificação mede 25 pontos e
+custa US$ 0,05, então 300/dia é um pior caso de US$ 15/dia: perde-se um dia de
+campanha, não a conta. **Multiplique por 0,05 antes de mexer nesse número**, e
+se a fonte voltar a ser o SerpApi baixe drasticamente — lá são 100 buscas por
+mês, ou seja, quatro verificações.
 
 Quem está logado não passa por nenhuma dessas travas: já paga pela cota.
 
-## Alcance, não posição
+## Visibilidade, não posição
 
 Medir a posição a partir do endereço do próprio negócio dá **sempre primeiro
 lugar**: a distância é zero e o Maps ordena por proximidade além de
 relevância. Medido assim, todo cliente se sente líder — e um número que nunca
 dói não vende nada.
 
-Medição real, três pizzarias em Chapecó com o termo "pizzaria":
+`src/lib/ranking/grade.ts` mede **25 pontos** (grade 5x5, 3 km entre pontos) e
+calcula duas coisas:
 
-| | Do próprio endereço | Buscando pela cidade |
+- **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
+  mercado; ausência conta zero.
+- **Posição média** — média das posições, contando ausência como 21.
+
+Pontos onde o Google não devolve resultado nenhum ficam **fora da conta**:
+área sem esse tipo de negócio não é culpa de quem está sendo medido, e contar
+puniria quem tem mato em volta.
+
+**Calibração contra o Localo**, para uma pizzaria em Passo Fundo:
+
+| | Nossa medição | Localo |
 |---|---|---|
-| Comercial pizzas | 1º | fora do top 20 |
-| Pizzaria Patagônica | 2º | fora do top 20 |
-| Pizzeria Siciliana | 1º | fora do top 20 |
+| Visibilidade | 31% | 29% |
+| Posição média | 14,9 | "Rank 16" |
 
-Os dois extremos são inúteis. Por isso `src/lib/ranking/alcance.ts` mede em
-anéis — na porta, a 2 km e a 5 km, em quatro direções cada — e reporta até
-onde o negócio ainda é encontrado:
+A proximidade indica que a conta é a mesma; tamanho e espaçamento da grade são
+escolha nossa.
 
-```
-na porta   1º
-a 1 km     1º, 2º, 1º, 4º
-a 2 km     1º, 1º, 1º, 5º
-a 5 km     fora, fora, fora, 2º
-```
-
-"Você domina dois quarteirões e some a cinco quilômetros" é verdade,
-específico, e é a informação que o dono não tem.
-
-Nove consultas por verificação, cerca de US$ 0,018. Isso só é viável com o
-DataForSEO: com as 100 buscas mensais do plano gratuito do SerpApi, uma única
-verificação consumiria 9% da cota do mês.
+**Custo: US$ 0,05 por verificação** (25 × US$ 0,002). É o número a multiplicar
+antes de mexer no teto diário em `LIMITES`.
 
 ## Posição no Maps
 

@@ -6,7 +6,7 @@ import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, ipDaRequisicao, LIMITES } from "@/lib/rate-limit";
 import { SemFonteDeRankingError, type ResultadoLocal } from "@/lib/ranking";
-import { medirAlcance, type Anel } from "@/lib/ranking/alcance";
+import { medirEmGrade, type MedicaoEmGrade } from "@/lib/ranking/grade";
 
 export type EstadoVerificacao =
   | { tipo: "erro"; mensagem: string }
@@ -15,13 +15,8 @@ export type EstadoVerificacao =
       negocio: string;
       placeId: string;
       termo: string;
-      /** Posição medida do endereço do próprio negócio. */
-      naPorta: number | null;
-      /** Até onde ainda é encontrado, em km. */
-      alcanceKm: number | null;
-      aneis: Anel[];
+      medicao: MedicaoEmGrade;
       ranking: ResultadoLocal[];
-      kmDoRanking: number;
     };
 
 /**
@@ -92,8 +87,10 @@ export async function verificarPosicao(
   }
 
   try {
-    const medicao = await medirAlcance(termo, lat, lng, placeId, nome);
-    const posicao = medicao.naPorta;
+    const medicao = await medirEmGrade(termo, lat, lng, placeId, nome);
+    // Guarda a posição média, não a da porta: é ela que descreve a região.
+    const posicao =
+      medicao.posicaoMedia === null ? null : Math.round(medicao.posicaoMedia);
 
     // Guarda o histórico de quem está logado; visitante anônimo não tem onde
     // pendurar o registro, e criar conta fantasma para isso seria pior.
@@ -107,9 +104,11 @@ export async function verificarPosicao(
           keyword: termo,
           position: posicao,
           resultJson: {
-            alcanceKm: medicao.alcanceKm,
+            visibilidade: medicao.visibilidade,
+            posicaoMedia: medicao.posicaoMedia,
+            posicaoTipica: medicao.posicaoTipica,
             naPorta: medicao.naPorta,
-            aneis: medicao.aneis,
+            pontos: medicao.pontos,
             ranking: medicao.ranking,
           },
         },
@@ -121,11 +120,8 @@ export async function verificarPosicao(
       negocio: nome,
       placeId,
       termo,
-      naPorta: medicao.naPorta,
-      alcanceKm: medicao.alcanceKm,
-      aneis: medicao.aneis,
+      medicao,
       ranking: medicao.ranking,
-      kmDoRanking: medicao.kmDoRanking,
     };
   } catch (erro) {
     if (erro instanceof SemFonteDeRankingError) {

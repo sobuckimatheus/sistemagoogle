@@ -75,17 +75,20 @@ export const LIMITES = {
   /**
    * Teto global da página pública, somando todos os visitantes.
    *
-   * Continua existindo mesmo com o custo baixo do DataForSEO (US$ 0,002 por
-   * busca): o limite por IP não segura um robô, porque IP é barato de trocar.
-   * O que ele protege agora é o saldo pré-pago — a 2.000 buscas por dia, o
-   * pior caso custa US$ 4/dia em vez de esvaziar a conta sem ninguém notar.
+   * O limite por IP não segura um robô, porque IP é barato de trocar. Este
+   * protege o saldo pré-pago.
    *
-   * Se a fonte for o SerpApi (reserva), baixe este número: lá são 100 buscas
-   * por MÊS no plano gratuito.
+   * Cada verificação mede 25 pontos, a US$ 0,002 cada: **US$ 0,05 por
+   * verificação**. A 300 por dia, o pior caso custa US$ 15/dia — perde-se um
+   * dia de campanha, não a conta inteira. Ao mexer neste número, multiplique
+   * por 0,05 antes de decidir.
+   *
+   * Se a fonte for o SerpApi (reserva), baixe drasticamente: lá são 100
+   * buscas por MÊS no plano gratuito, ou seja, quatro verificações.
    */
   buscaAnonimaGlobal: {
     recurso: "busca-anon-global",
-    maximo: doAmbiente("LIMITE_ANONIMO_BUSCA_DIA", 2000),
+    maximo: doAmbiente("LIMITE_ANONIMO_BUSCA_DIA", 300),
     janelaMinutos: 1440,
   },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */
