@@ -123,11 +123,20 @@ export function FaixaDePosicao({
   const posicao = Math.min(Math.max((valor - minimo) / amplitude, 0), 1);
   const porcento = `${(posicao * 100).toFixed(1)}%`;
 
+  // Quem está abaixo da referência não pode ganhar a cor da marca: ouro é o
+  // acento positivo do painel, e pintar de ouro um resultado ruim inverte a
+  // leitura de quem só bate o olho.
+  const abaixo = valor < minimo;
+
   return (
     <div className="flex flex-col gap-2">
       <div className="relative pt-7">
         <span
-          className="absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-md border border-ouro/30 bg-ouro-fundo px-1.5 py-0.5 text-[11px] font-medium text-ouro-claro numero"
+          className={`numero absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${
+            abaixo
+              ? "border-baixa/30 bg-baixa/10 text-baixa"
+              : "border-ouro/30 bg-ouro-fundo text-ouro-claro"
+          }`}
           style={{ left: porcento }}
         >
           {formatar(valor)}
@@ -135,11 +144,17 @@ export function FaixaDePosicao({
 
         <div className="relative h-1.5 rounded-full bg-superficie-alta">
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-ouro-fundo to-ouro"
+            className={`absolute inset-y-0 left-0 rounded-full ${
+              abaixo
+                ? "bg-baixa/60"
+                : "bg-gradient-to-r from-ouro-fundo to-ouro"
+            }`}
             style={{ width: porcento }}
           />
           <span
-            className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-fundo bg-ouro"
+            className={`absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-fundo ${
+              abaixo ? "bg-baixa" : "bg-ouro"
+            }`}
             style={{ left: porcento }}
           />
         </div>

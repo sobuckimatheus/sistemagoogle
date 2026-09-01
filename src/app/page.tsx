@@ -1,159 +1,77 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { sair } from "@/app/actions/auth";
 import { PaginaIsca } from "@/components/isca";
-import { SeletorDeConta } from "@/components/seletor-de-conta";
-import { contaAtivaOuNulo, contasDoUsuario } from "@/lib/auth/conta";
+import { CascaDoPainel, itensDoNegocio } from "@/components/lumora/casca";
+import { PrimeirosPassos } from "@/components/lumora/primeiros-passos";
+import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 
 // Lê sessão e banco a cada requisição — não faz sentido pré-renderizar.
 export const dynamic = "force-dynamic";
 
 /**
- * A raiz serve duas páginas diferentes.
+ * A raiz serve três destinos.
  *
  * Sem sessão, ela é a isca: a pergunta "em que posição minha empresa
  * aparece?" é o que traz a pessoa, e mandá-la para um formulário de login
- * antes de responder perde a visita. Com sessão, é o painel.
+ * antes de responder perde a visita. Por isso a raiz saiu da proteção do
+ * middleware — e a comparação lá é por igualdade, não por prefixo, para não
+ * abrir o resto do app junto.
  *
- * Por isso a raiz saiu da proteção do middleware — e a comparação lá é por
- * igualdade, não por prefixo, para não abrir o resto do app junto.
+ * Com sessão e negócio conectado, ela leva direto ao dashboard: quem entra no
+ * painel quer ver os números, não uma antessala com o nome da conta. A lista
+ * de negócios continua existindo em `/negocios`, para quem tem mais de um.
+ *
+ * Com sessão e nenhum negócio, ela é a orientação para conectar o Google.
  */
 export default async function Home() {
   const sessao = await contaAtivaOuNulo();
 
   if (!sessao) return <PaginaIsca />;
 
-  const { user, conta } = sessao;
+  const { conta } = sessao;
 
-  const [contas, assinatura, listaNegocios, palavrasChave] = await Promise.all([
-    contasDoUsuario(user.id),
+  const [primeiroNegocio, conexoes, assinatura] = await Promise.all([
+    prisma.business.findFirst({
+      where: { accountId: conta.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    }),
+    prisma.googleConnection.findMany({
+      where: { accountId: conta.id, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
     prisma.subscription.findUnique({
       where: { accountId: conta.id },
       include: { plan: true },
     }),
-    prisma.business.findMany({
-      where: { accountId: conta.id },
-      orderBy: { createdAt: "asc" },
-      include: {
-        auditSnapshots: { orderBy: { createdAt: "desc" }, take: 1 },
-        _count: { select: { reviews: true, checklistItems: true } },
-      },
-    }),
-    // O limite de palavras-chave é da conta inteira, então a contagem também
-    // é — contar por negócio mostraria um número menor do que o cobrado.
-    prisma.keyword.count({ where: { business: { accountId: conta.id } } }),
   ]);
 
-  const negocios = listaNegocios.length;
+  if (primeiroNegocio) {
+    redirect(`/negocio/${primeiroNegocio.id}`);
+  }
+
+  // Autorizar o Google e escolher os locais são etapas separadas — quem já
+  // autorizou não deve ser mandado de volta ao começo.
+  const conexao = conexoes[0];
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-16">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Painel GBP</h1>
-          <p className="text-sm text-neutral-500">{user.email}</p>
-        </div>
-        <div className="flex items-center gap-3">
-        <SeletorDeConta contas={contas} ativa={conta.id} />
-        <Link href="/conta" className="text-sm underline text-neutral-600 dark:text-neutral-400">
-          Conta
-        </Link>
-        <Link href="/mercado" className="text-sm underline text-neutral-600 dark:text-neutral-400">
-          Verificador de Posição
-        </Link>
-        <form action={sair}>
-          <button
-            type="submit"
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-700"
-          >
-            Sair
-          </button>
-        </form>
-        </div>
-      </header>
-
-      <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
-        <h2 className="text-sm font-medium">Conta</h2>
-        <dl className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt className="text-neutral-500">Nome</dt>
-            <dd>{conta.name}</dd>
-          </div>
-          <div>
-            <dt className="text-neutral-500">Plano</dt>
-            <dd>
-              {assinatura?.plan.name ?? "—"}{" "}
-              <span className="text-neutral-500">
-                ({assinatura?.status.toLowerCase()})
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-neutral-500">Negócios conectados</dt>
-            <dd>
-              {negocios} de {assinatura?.plan.maxBusinesses ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-neutral-500">Palavras-chave</dt>
-            <dd className="tabular-nums">
-              {palavrasChave} de {assinatura?.plan.maxKeywords ?? "—"}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      {negocios > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">Seus negócios</h2>
-          <ul className="flex flex-col gap-2">
-            {listaNegocios.map((n) => (
-              <li key={n.id}>
-                <Link
-                  href={`/negocio/${n.id}`}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-4 text-sm hover:border-neutral-400 dark:border-neutral-800"
-                >
-                  <span className="flex flex-col gap-0.5">
-                    <span className="font-medium">{n.title}</span>
-                    <span className="text-neutral-500">
-                      {[n.primaryCategory, n.city].filter(Boolean).join(" · ") ||
-                        "sem categoria"}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-4 text-neutral-500">
-                    <span className="tabular-nums">
-                      {n.auditSnapshots[0]
-                        ? `${n.auditSnapshots[0].score}/100`
-                        : "sem auditoria"}
-                    </span>
-                    <span className="tabular-nums">
-                      {n._count.reviews} avaliações
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-neutral-300 p-5 dark:border-neutral-700">
-        <h2 className="text-sm font-medium">
-          {negocios === 0 ? "Próximo passo" : "Adicionar mais negócios"}
-        </h2>
-        <p className="text-sm text-neutral-500">
-          {negocios === 0
-            ? "Conecte o Google Meu Negócio para começar a acompanhar métricas, avaliações e posição no mapa."
-            : "Conecte outra conta Google ou selecione mais locais para rastrear."}
-        </p>
-        <Link
-          href="/conectar"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          {negocios === 0 ? "Conectar Google Meu Negócio" : "Gerenciar conexões"}
-        </Link>
-      </section>
-    </main>
+    <CascaDoPainel
+      itens={itensDoNegocio(null)}
+      rodape={{
+        negocio: conta.name,
+        plano: assinatura ? `Plano ${assinatura.plan.name}` : "Sem assinatura",
+        ativo:
+          assinatura?.status === "ACTIVE" || assinatura?.status === "TRIALING",
+      }}
+    >
+      <PrimeirosPassos
+        etapa={conexao ? 2 : 1}
+        linkDosLocais={
+          conexao ? `/conectar/locais?conexao=${conexao.id}` : null
+        }
+      />
+    </CascaDoPainel>
   );
 }

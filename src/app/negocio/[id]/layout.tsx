@@ -1,7 +1,4 @@
-import {
-  BarraLateral,
-  type ItemDeNavegacao,
-} from "@/components/lumora/barra-lateral";
+import { CascaDoPainel, itensDoNegocio } from "@/components/lumora/casca";
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 
@@ -31,79 +28,27 @@ export default async function NegocioLayout({
     }),
   ]);
 
-  const itens: ItemDeNavegacao[] = [
-    { href: `/negocio/${id}`, rotulo: "Dashboard", icone: "painel" },
-    { href: `/negocio/${id}/desempenho`, rotulo: "Desempenho", icone: "visao" },
-    {
-      href: `/negocio/${id}/perfil`,
-      rotulo: "Auditoria do perfil",
-      icone: "auditoria",
-    },
-    {
-      href: `/negocio/${id}/avaliacoes`,
-      rotulo: "Avaliações",
-      icone: "estrela",
-    },
-    {
-      href: `/negocio/${id}/postagens`,
-      rotulo: "Postagens",
-      icone: "postagem",
-    },
-    {
-      href: `/negocio/${id}/concorrentes`,
-      rotulo: "Concorrentes",
-      icone: "concorrentes",
-    },
-    {
-      href: `/negocio/${id}/palavras-chave`,
-      rotulo: "Palavras-chave",
-      icone: "receita",
-    },
-    {
-      href: `/negocio/${id}/checklist`,
-      rotulo: "Plano de ação",
-      icone: "checklist",
-      contador: pendentes,
-    },
-    {
-      href: `/negocio/${id}/alertas`,
-      rotulo: "Alertas",
-      icone: "alerta",
-      contador: naoLidos,
-    },
-    {
-      href: `/negocio/${id}/relatorio`,
-      rotulo: "Relatório",
-      icone: "relatorio",
-    },
-    { href: "/conta", rotulo: "Configurações", icone: "config" },
-  ];
-
   return (
-    <div className="flex min-h-dvh flex-col bg-fundo lg:flex-row">
-      <BarraLateral
-        itens={itens}
-        rodape={{
-          negocio: negocio.title,
-          plano: assinatura
-            ? `Plano ${assinatura.plan.name}`
-            : "Sem assinatura",
-          ativo:
-            assinatura?.status === "ACTIVE" ||
-            assinatura?.status === "TRIALING",
-        }}
-        sincronizadoEm={
-          negocio.lastSyncedAt
-            ? negocio.lastSyncedAt.toLocaleString("pt-BR", {
-                day: "2-digit",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : null
-        }
-      />
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
+    <CascaDoPainel
+      itens={itensDoNegocio(id, { pendentes, naoLidos })}
+      rodape={{
+        negocio: negocio.title,
+        plano: assinatura ? `Plano ${assinatura.plan.name}` : "Sem assinatura",
+        ativo:
+          assinatura?.status === "ACTIVE" || assinatura?.status === "TRIALING",
+      }}
+      sincronizadoEm={
+        negocio.lastSyncedAt
+          ? negocio.lastSyncedAt.toLocaleString("pt-BR", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : null
+      }
+    >
+      {children}
+    </CascaDoPainel>
   );
 }

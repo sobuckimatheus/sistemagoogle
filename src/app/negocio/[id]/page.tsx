@@ -48,6 +48,10 @@ export default async function DashboardNegocio({
   const semDados = d.atual.visualizacoes === 0 && d.atual.ligacoes === 0;
 
   const { estimativas: e } = d;
+  // Sem ação nenhuma, receitaPerdida dá zero pela fórmula — e zero aqui
+  // significa "não há medição", não "converte acima do segmento". Tratar os
+  // dois como o mesmo caso faria a tela elogiar um perfil sem dado.
+  const semAcoes = e.acoesTotais === 0;
   // O último dia do intervalo é exclusivo na consulta; exibir o dia anterior
   // evita prometer um dia que ainda não fechou.
   const fimExibido = new Date(d.periodo.fim);
@@ -197,7 +201,15 @@ export default async function DashboardNegocio({
               Receita perdida
             </Rotulo>
             <p className="max-w-[15ch] font-serif text-[34px] leading-[1.15] text-texto">
-              {e.receitaPerdida > 0 ? (
+              {semAcoes ? (
+                <>
+                  Ainda não há{" "}
+                  <span className="whitespace-nowrap text-texto-suave">
+                    o que estimar
+                  </span>{" "}
+                  no período.
+                </>
+              ) : e.receitaPerdida > 0 ? (
                 <>
                   Você está deixando{" "}
                   <span className="whitespace-nowrap text-baixa">
@@ -227,16 +239,27 @@ export default async function DashboardNegocio({
             </p>
             <p
               className={`numero text-[44px] font-semibold leading-none ${
-                e.receitaPerdida > 0 ? "text-baixa" : "text-alta"
+                semAcoes
+                  ? "text-texto-fraco"
+                  : e.receitaPerdida > 0
+                    ? "text-baixa"
+                    : "text-alta"
               }`}
             >
-              {dinheiro.format(e.receitaPerdida)}
+              {semAcoes ? "—" : dinheiro.format(e.receitaPerdida)}
             </p>
-            <Variacao
-              valor={d.variacoesEstimadas.receitaPerdida}
-              temHistorico={d.temHistorico}
-              bomQuandoSobe={false}
-            />
+            {semAcoes ? (
+              <p className="max-w-[28ch] text-xs leading-relaxed text-texto-fraco">
+                Nenhuma ligação, rota ou clique no site foi registrada. A
+                estimativa depende delas.
+              </p>
+            ) : (
+              <Variacao
+                valor={d.variacoesEstimadas.receitaPerdida}
+                temHistorico={d.temHistorico}
+                bomQuandoSobe={false}
+              />
+            )}
           </div>
         </div>
 

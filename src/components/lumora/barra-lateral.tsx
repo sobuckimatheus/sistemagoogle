@@ -13,6 +13,8 @@ export type ItemDeNavegacao = {
   contador?: number;
   /** Selo de recurso novo, para o que acabou de entrar no produto. */
   novo?: boolean;
+  /** Rota que ainda não existe para esta conta — visível, mas sem link. */
+  desabilitado?: boolean;
 };
 
 export type Rodape = {
@@ -44,7 +46,7 @@ export function BarraLateral({
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
           <ul className="flex flex-col gap-0.5">
             {itens.map((item) => (
-              <li key={item.href}>
+              <li key={item.rotulo}>
                 <ItemLateral item={item} />
               </li>
             ))}
@@ -69,7 +71,7 @@ export function BarraLateral({
         <nav className="overflow-x-auto px-2 pb-2">
           <ul className="flex w-max gap-1">
             {itens.map((item) => (
-              <li key={item.href}>
+              <li key={item.rotulo}>
                 <ItemLateral item={item} horizontal />
               </li>
             ))}
@@ -105,18 +107,18 @@ function ItemLateral({
   // negócio e ficaria aceso o tempo inteiro com startsWith.
   const ativo = caminho === item.href;
 
-  return (
-    <Link
-      href={item.href}
-      aria-current={ativo ? "page" : undefined}
-      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-        horizontal ? "whitespace-nowrap" : ""
-      } ${
-        ativo
-          ? "bg-ouro-fundo text-ouro-claro"
-          : "text-texto-suave hover:bg-superficie-alta hover:text-texto"
-      }`}
-    >
+  const classes = `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+    horizontal ? "whitespace-nowrap" : ""
+  } ${
+    item.desabilitado
+      ? "cursor-not-allowed text-texto-fraco/60"
+      : ativo
+        ? "bg-ouro-fundo text-ouro-claro"
+        : "text-texto-suave hover:bg-superficie-alta hover:text-texto"
+  }`;
+
+  const conteudo = (
+    <>
       <Icone nome={item.icone} className="size-[18px] shrink-0" />
       {item.rotulo}
       {item.novo && (
@@ -129,6 +131,26 @@ function ItemLateral({
           {item.contador}
         </span>
       ) : null}
+    </>
+  );
+
+  // Sem negócio conectado o item não vira link: apontar para uma rota que não
+  // existe para esta conta entregaria um 404 no lugar de uma orientação.
+  if (item.desabilitado) {
+    return (
+      <span className={classes} aria-disabled="true">
+        {conteudo}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      aria-current={ativo ? "page" : undefined}
+      className={classes}
+    >
+      {conteudo}
     </Link>
   );
 }
@@ -136,7 +158,7 @@ function ItemLateral({
 function Identidade({ rodape }: { rodape: Rodape }) {
   return (
     <Link
-      href="/"
+      href="/negocios"
       className="m-3 flex items-center gap-3 rounded-lg border border-borda px-3 py-2.5 text-left transition-colors hover:bg-superficie-alta"
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ouro-fundo text-sm font-semibold text-ouro">
