@@ -16,6 +16,13 @@ const ROTAS_PUBLICAS = [
   "/recuperar-senha",
   "/auth",
   "/convite",
+  // Página isca: responde "em que posição eu apareço?" antes de pedir
+  // cadastro. Exigir login aqui mataria a conversão, que é a razão dela
+  // existir.
+  "/verificador",
+  // Usadas pela isca. São protegidas por limite de uso por IP e por um teto
+  // global, não por sessão — ver src/lib/rate-limit.ts.
+  "/api/places",
 ];
 
 /**

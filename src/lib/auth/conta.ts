@@ -46,6 +46,42 @@ export async function exigirContaAtiva() {
   return { user, conta: padrao };
 }
 
+/**
+ * Conta ativa quando existe sessão, `null` quando não existe.
+ *
+ * Diferente de `exigirContaAtiva`, que redireciona para o login: as telas
+ * públicas precisam saber quem é o visitante sem expulsá-lo. É o que permite
+ * a mesma rota servir o visitante anônimo com limite apertado e o assinante
+ * com limite folgado.
+ */
+export async function contaAtivaOuNulo() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  try {
+    const padrao = await provisionarUsuario(user);
+
+    const escolhida = (await cookies()).get(COOKIE_CONTA_ATIVA)?.value;
+    if (escolhida && escolhida !== padrao.id) {
+      const vinculo = await prisma.accountMember.findUnique({
+        where: { accountId_userId: { accountId: escolhida, userId: user.id } },
+        include: { account: true },
+      });
+      if (vinculo) return { user, conta: vinculo.account };
+    }
+
+    return { user, conta: padrao };
+  } catch {
+    // Sessão válida mas provisionamento falhou não pode derrubar uma página
+    // pública — o visitante segue como anônimo.
+    return null;
+  }
+}
+
 /** Contas às quais o usuário pertence, para o seletor de conta ativa. */
 export async function contasDoUsuario(userId: string) {
   const vinculos = await prisma.accountMember.findMany({

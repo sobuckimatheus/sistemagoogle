@@ -40,7 +40,18 @@ const SEM_TENANT: Record<string, string> = {
   "actions/conta.ts": "troca de conta: confere o vínculo do usuário direto",
   "convite/[token]/acoes.ts":
     "aceite de convite: o token é a credencial e o e-mail é conferido contra a sessão",
+  "verificador/acoes.ts":
+    "página isca: pública por decisão de produto. Não lê nem escreve dado de " +
+    "conta alguma sem sessão — quando há sessão, grava o histórico na conta " +
+    "dela. O abuso é contido por limite de IP e teto global, não por tenant",
 };
+
+/**
+ * Por que `contaAtivaOuNulo` **não** está entre as guardas: ela apenas lê a
+ * sessão, sem exigir nada. Aceitá-la aqui deixaria passar uma ação que
+ * consulta quem é o usuário e depois ignora a resposta — que é precisamente
+ * o vazamento que este teste existe para pegar.
+ */
 
 /**
  * Todo arquivo de Server Action sob `src/app`.

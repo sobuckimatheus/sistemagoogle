@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { exigirContaAtiva } from "@/lib/auth/conta";
 import { fotoDoLugar } from "@/lib/google/places";
 
 export const runtime = "nodejs";
@@ -18,8 +17,6 @@ export const runtime = "nodejs";
 const FORMATO_DO_NOME = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
 
 export async function GET(request: NextRequest) {
-  await exigirContaAtiva();
-
   const nome = request.nextUrl.searchParams.get("nome") ?? "";
 
   // Sem esta validação o parâmetro viraria um proxy para qualquer URL do

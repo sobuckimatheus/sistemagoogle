@@ -40,6 +40,29 @@ export const LIMITES = {
    * contra automação, não contra uso normal.
    */
   autocomplete: { recurso: "autocomplete", maximo: 150, janelaMinutos: 60 },
+  /**
+   * Visitante anônimo na página isca. Limites bem menores: aqui não há conta
+   * para responsabilizar, e a chave é o IP — que é fácil de trocar.
+   */
+  autocompleteAnonimo: {
+    recurso: "autocomplete-anon",
+    maximo: 30,
+    janelaMinutos: 60,
+  },
+  buscaAnonima: { recurso: "busca-anon", maximo: 3, janelaMinutos: 60 },
+  /**
+   * Teto global da página pública, somando todos os visitantes.
+   *
+   * O plano grátis do SerpApi dá 100 buscas **por mês**. Sem este teto, um
+   * robô esvaziaria a cota do produto inteiro em minutos, e as telas pagas —
+   * que é onde está a receita — parariam junto. Limite por IP não protege
+   * disso: IP é barato de trocar.
+   */
+  buscaAnonimaGlobal: {
+    recurso: "busca-anon-global",
+    maximo: 40,
+    janelaMinutos: 1440,
+  },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */
   ia: { recurso: "ia", maximo: 40, janelaMinutos: 60 },
   /**
@@ -100,4 +123,18 @@ export async function consumirCota(
   }
 
   return { permitido: true, restantes: limite.maximo - usadas };
+}
+
+/**
+ * Identifica o visitante anônimo para efeito de limite.
+ *
+ * Atrás da Vercel, o IP real chega em `x-forwarded-for`; a primeira entrada é
+ * o cliente e o restante são os proxies do caminho. Não é identidade forte —
+ * IP se troca —, e é por isso que o limite por IP anda junto com um teto
+ * global: um sozinho não protege a cota.
+ */
+export function ipDaRequisicao(request: { headers: Headers }): string {
+  const encaminhado = request.headers.get("x-forwarded-for");
+  const ip = encaminhado?.split(",")[0]?.trim() || "desconhecido";
+  return `ip:${ip}`;
 }

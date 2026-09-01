@@ -130,6 +130,28 @@ O volume é buscado na criação do termo, por um botão manual e pelo job mensa
 `/api/cron/volume-keywords` — o Keyword Planner publica média mensal, então
 consultar com mais frequência gastaria operação para reescrever o mesmo número.
 
+## Página isca (`/verificador`)
+
+Pública, sem login: responde "em que posição minha empresa aparece?" e só
+então oferece a assinatura. Exigir cadastro antes da resposta mataria a
+conversão, que é a razão de a página existir.
+
+Isso expõe duas APIs pagas a visitantes anônimos, então há três travas em
+`src/lib/rate-limit.ts`:
+
+| Trava | Valor | Por quê |
+|---|---|---|
+| autocomplete por IP | 30/h | Places API é cobrada por consulta |
+| busca por IP | 3/h | uma pessoa não precisa de mais para se convencer |
+| **teto global** | 40/dia | o plano grátis do SerpApi dá 100 buscas por **mês** |
+
+O teto global é o que realmente protege: limite por IP não segura um robô,
+porque IP é barato de trocar. Sem ele, a página aberta esvaziaria a cota do
+produto inteiro em minutos — e as telas pagas parariam junto.
+
+Quem está logado não passa por nenhuma dessas travas: já paga pela cota, e cai
+nos limites da conta.
+
 ## Limites de uso
 
 `src/lib/rate-limit.ts` protege a fatura, não o servidor: um botão de análise

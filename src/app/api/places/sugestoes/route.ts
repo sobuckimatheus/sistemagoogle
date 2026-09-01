@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { exigirContaAtiva } from "@/lib/auth/conta";
+import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import {
   detalhesDoLugar,
   PlacesIndisponivelError,
   sugerirNegocios,
 } from "@/lib/google/places";
-import { consumirCota, LIMITES } from "@/lib/rate-limit";
+import { consumirCota, ipDaRequisicao, LIMITES } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,11 +17,16 @@ export const runtime = "nodejs";
  * Server Actions são enfileiradas em ordem e uma digitação rápida ficaria
  * esperando a anterior terminar.
  *
- * Exige sessão: a chave da Places API é cobrada por uso, e um endpoint aberto
- * seria uma conta de terceiros pagando a busca de qualquer um.
+ * Atende visitante anônimo — a página isca depende disso — mas com limite
+ * bem menor. A chave da Places API é cobrada por uso, então um endpoint sem
+ * teto seria a conta de outra pessoa pagando a curiosidade de qualquer um.
  */
 export async function GET(request: NextRequest) {
-  const { conta } = await exigirContaAtiva();
+  const sessaoAtiva = await contaAtivaOuNulo();
+
+  const { chave, limite } = sessaoAtiva
+    ? { chave: sessaoAtiva.conta.id, limite: LIMITES.autocomplete }
+    : { chave: ipDaRequisicao(request), limite: LIMITES.autocompleteAnonimo };
 
   const { searchParams } = request.nextUrl;
   const placeId = searchParams.get("placeId");
@@ -33,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sugestoes: [] });
   }
 
-  const cota = await consumirCota(LIMITES.autocomplete, conta.id);
+  const cota = await consumirCota(limite, chave);
   if (!cota.permitido) {
     return NextResponse.json({ erro: cota.mensagem }, { status: 429 });
   }
