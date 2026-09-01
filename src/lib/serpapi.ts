@@ -1,6 +1,7 @@
 import "server-only";
 
 import { serverEnv } from "@/lib/env/server";
+import type { ResultadoLocal } from "@/lib/ranking/tipos";
 
 /**
  * SerpApi — posição real no Google Maps por palavra-chave e localização.
@@ -23,15 +24,7 @@ export class SerpApiIndisponivelError extends Error {
   }
 }
 
-export type ResultadoLocal = {
-  posicao: number;
-  titulo: string;
-  placeId: string | null;
-  nota: number | null;
-  totalAvaliacoes: number | null;
-  endereco: string | null;
-  tipo: string | null;
-};
+export type { ResultadoLocal };
 
 /**
  * Busca o ranking do Maps para um termo, a partir de um ponto geográfico.
@@ -88,6 +81,8 @@ export async function rankingNoMaps(
     totalAvaliacoes: r.reviews ?? null,
     endereco: r.address ?? null,
     tipo: r.type ?? null,
+    // O SerpApi não devolve imagem nos resultados locais.
+    foto: null,
   }));
 }
 
@@ -150,6 +145,7 @@ export async function buscarNegocio(
         totalAvaliacoes: p.reviews ?? null,
         endereco: p.address ?? null,
         tipo: p.type ?? null,
+        foto: null,
       },
     ];
   }
@@ -162,5 +158,7 @@ export async function buscarNegocio(
     totalAvaliacoes: r.reviews ?? null,
     endereco: r.address ?? null,
     tipo: r.type ?? null,
+    // O SerpApi não devolve imagem nos resultados locais.
+    foto: null,
   }));
 }

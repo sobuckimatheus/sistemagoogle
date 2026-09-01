@@ -1,18 +1,30 @@
 import Link from "next/link";
 
 import { sair } from "@/app/actions/auth";
+import { PaginaIsca } from "@/components/isca";
 import { SeletorDeConta } from "@/components/seletor-de-conta";
-import { contasDoUsuario, exigirContaAtiva } from "@/lib/auth/conta";
+import { contaAtivaOuNulo, contasDoUsuario } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 
 // Lê sessão e banco a cada requisição — não faz sentido pré-renderizar.
 export const dynamic = "force-dynamic";
 
+/**
+ * A raiz serve duas páginas diferentes.
+ *
+ * Sem sessão, ela é a isca: a pergunta "em que posição minha empresa
+ * aparece?" é o que traz a pessoa, e mandá-la para um formulário de login
+ * antes de responder perde a visita. Com sessão, é o painel.
+ *
+ * Por isso a raiz saiu da proteção do middleware — e a comparação lá é por
+ * igualdade, não por prefixo, para não abrir o resto do app junto.
+ */
 export default async function Home() {
-  // Resolve sessão, provisionamento e conta ativa (inclusive a escolhida no
-  // seletor) em um lugar só. O middleware já barra acesso sem sessão; aqui
-  // ainda há o redirect que cobre a corrida com a expiração do token.
-  const { user, conta } = await exigirContaAtiva();
+  const sessao = await contaAtivaOuNulo();
+
+  if (!sessao) return <PaginaIsca />;
+
+  const { user, conta } = sessao;
 
   const [contas, assinatura, listaNegocios, palavrasChave] = await Promise.all([
     contasDoUsuario(user.id),

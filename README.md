@@ -130,27 +130,47 @@ O volume é buscado na criação do termo, por um botão manual e pelo job mensa
 `/api/cron/volume-keywords` — o Keyword Planner publica média mensal, então
 consultar com mais frequência gastaria operação para reescrever o mesmo número.
 
-## Página isca (`/verificador`)
+## Página isca (a raiz, e `/verificador`)
 
-Pública, sem login: responde "em que posição minha empresa aparece?" e só
-então oferece a assinatura. Exigir cadastro antes da resposta mataria a
-conversão, que é a razão de a página existir.
+**A raiz serve duas páginas.** Sem sessão é a isca; com sessão é o painel. A
+pergunta "em que posição minha empresa aparece?" é o que traz a pessoa, e
+mandá-la para um formulário de login antes de responder perde a visita.
+`/verificador` continua existindo para campanhas e links diretos.
 
-Isso expõe duas APIs pagas a visitantes anônimos, então há três travas em
-`src/lib/rate-limit.ts`:
+Por isso a raiz saiu da proteção do middleware — e lá a comparação é por
+**igualdade**, nunca por prefixo: `startsWith("/")` valeria para toda rota e
+abriria o produto inteiro.
+
+Travas contra abuso, em `src/lib/rate-limit.ts`:
 
 | Trava | Valor | Por quê |
 |---|---|---|
 | autocomplete por IP | 30/h | Places API é cobrada por consulta |
-| busca por IP | 3/h | uma pessoa não precisa de mais para se convencer |
-| **teto global** | 40/dia | o plano grátis do SerpApi dá 100 buscas por **mês** |
+| busca por IP | 5/h | uma pessoa não precisa de mais para se convencer |
+| **teto global** | 2.000/dia | limite por IP não segura robô: IP é barato de trocar |
 
-O teto global é o que realmente protege: limite por IP não segura um robô,
-porque IP é barato de trocar. Sem ele, a página aberta esvaziaria a cota do
-produto inteiro em minutos — e as telas pagas parariam junto.
+O teto global protege o saldo pré-pago: no pior caso o dia custa US$ 4 em vez
+de esvaziar a conta sem ninguém notar. **Se a fonte de posição voltar a ser o
+SerpApi, baixe esse número** — lá são 100 buscas por mês no plano gratuito.
 
-Quem está logado não passa por nenhuma dessas travas: já paga pela cota, e cai
-nos limites da conta.
+Quem está logado não passa por nenhuma dessas travas: já paga pela cota.
+
+## Posição no Maps
+
+`src/lib/ranking/` escolhe a fonte, com a mesma ideia da camada de volume:
+
+| Fonte | Custo | Traz foto | Observação |
+|---|---|---|---|
+| DataForSEO (padrão) | US$ 0,002/busca | sim (`main_image`) | `place_id` compatível com o autocomplete |
+| SerpApi (reserva) | 100 buscas/mês no grátis | não | não sustenta página pública |
+
+**A Places API não serve para isso.** Ela devolve lugares que casam com um
+texto, ordenados por relevância *da API* — não é a lista que o usuário vê no
+Maps. Usar essa ordem como "sua posição" seria inventar um número.
+
+A foto do negócio selecionado também vem do DataForSEO: a Places API não
+devolve `photos` para a chave deste projeto (RUNBOOK §3.05), e a busca extra
+custa US$ 0,002 — barato o bastante para o cartão parecer real.
 
 ## Limites de uso
 

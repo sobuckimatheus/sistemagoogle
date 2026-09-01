@@ -6,10 +6,10 @@ import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, ipDaRequisicao, LIMITES } from "@/lib/rate-limit";
 import {
-  rankingNoMaps,
-  SerpApiIndisponivelError,
+  rankingLocal,
+  SemFonteDeRankingError,
   type ResultadoLocal,
-} from "@/lib/serpapi";
+} from "@/lib/ranking";
 
 export type EstadoVerificacao =
   | { tipo: "erro"; mensagem: string }
@@ -86,7 +86,7 @@ export async function verificarPosicao(
 
   try {
     const temPonto = Number.isFinite(lat) && Number.isFinite(lng);
-    const ranking = await rankingNoMaps(
+    const ranking = await rankingLocal(
       termo,
       temPonto ? lat : 0,
       temPonto ? lng : 0,
@@ -124,7 +124,7 @@ export async function verificarPosicao(
       ranking,
     };
   } catch (erro) {
-    if (erro instanceof SerpApiIndisponivelError) {
+    if (erro instanceof SemFonteDeRankingError) {
       return {
         tipo: "erro",
         mensagem:

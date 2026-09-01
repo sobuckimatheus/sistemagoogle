@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { contaAtivaOuNulo } from "@/lib/auth/conta";
+import { fotoDoNegocio } from "@/lib/dataforseo/maps";
 import {
   detalhesDoLugar,
   PlacesIndisponivelError,
@@ -45,9 +46,22 @@ export async function GET(request: NextRequest) {
 
   try {
     if (placeId) {
-      return NextResponse.json({
-        detalhes: await detalhesDoLugar(placeId, sessao),
-      });
+      const detalhes = await detalhesDoLugar(placeId, sessao);
+
+      // A Places API não devolve `photos` para a chave deste projeto (ver
+      // RUNBOOK §3.05). O DataForSEO traz a mesma imagem do perfil por
+      // US$ 0,002 — barato o bastante para valer a busca, e é o que faz o
+      // cartão do negócio parecer real em vez de um retângulo vazio.
+      if (!detalhes.foto && detalhes.lat !== null && detalhes.lng !== null) {
+        detalhes.foto = await fotoDoNegocio(
+          detalhes.nome,
+          detalhes.placeId,
+          detalhes.lat,
+          detalhes.lng,
+        );
+      }
+
+      return NextResponse.json({ detalhes });
     }
 
     return NextResponse.json({ sugestoes: await sugerirNegocios(texto, sessao) });

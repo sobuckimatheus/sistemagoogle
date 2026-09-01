@@ -49,18 +49,21 @@ export const LIMITES = {
     maximo: 30,
     janelaMinutos: 60,
   },
-  buscaAnonima: { recurso: "busca-anon", maximo: 3, janelaMinutos: 60 },
+  buscaAnonima: { recurso: "busca-anon", maximo: 5, janelaMinutos: 60 },
   /**
    * Teto global da página pública, somando todos os visitantes.
    *
-   * O plano grátis do SerpApi dá 100 buscas **por mês**. Sem este teto, um
-   * robô esvaziaria a cota do produto inteiro em minutos, e as telas pagas —
-   * que é onde está a receita — parariam junto. Limite por IP não protege
-   * disso: IP é barato de trocar.
+   * Continua existindo mesmo com o custo baixo do DataForSEO (US$ 0,002 por
+   * busca): o limite por IP não segura um robô, porque IP é barato de trocar.
+   * O que ele protege agora é o saldo pré-pago — a 2.000 buscas por dia, o
+   * pior caso custa US$ 4/dia em vez de esvaziar a conta sem ninguém notar.
+   *
+   * Se a fonte for o SerpApi (reserva), baixe este número: lá são 100 buscas
+   * por MÊS no plano gratuito.
    */
   buscaAnonimaGlobal: {
     recurso: "busca-anon-global",
-    maximo: 40,
+    maximo: 2000,
     janelaMinutos: 1440,
   },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */

@@ -30,6 +30,20 @@ export type NegocioSelecionado = {
 const ESPERA_MS = 350;
 
 /**
+ * Origem da imagem do perfil.
+ *
+ * Duas fontes possíveis: o DataForSEO devolve uma URL pronta do Google, e a
+ * Places API devolve um nome de recurso que só nossa rota sabe resolver (ela
+ * guarda a chave). Distinguir pelo prefixo evita um campo a mais só para
+ * dizer de onde veio.
+ */
+function urlDaFoto(foto: string): string {
+  return foto.startsWith("http")
+    ? foto
+    : `/api/places/foto?nome=${encodeURIComponent(foto)}`;
+}
+
+/**
  * Busca de negócio no Google com autocomplete.
  *
  * Compartilhado entre a tela interna e a página pública: as duas fazem
@@ -233,7 +247,7 @@ function CartaoDoNegocio({
            origem varia por foto. */
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/api/places/foto?nome=${encodeURIComponent(negocio.foto)}`}
+          src={urlDaFoto(negocio.foto)}
           alt={`Foto de ${negocio.nome}`}
           className="size-16 shrink-0 rounded-md object-cover"
         />

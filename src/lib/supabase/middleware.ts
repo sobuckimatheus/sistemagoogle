@@ -63,9 +63,14 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const ehPublica = ROTAS_PUBLICAS.some(
-    (rota) => pathname === rota || pathname.startsWith(`${rota}/`),
-  );
+
+  // A raiz é comparada por igualdade, nunca por prefixo: `startsWith("/")`
+  // valeria para toda rota do app e abriria o produto inteiro.
+  const ehPublica =
+    pathname === "/" ||
+    ROTAS_PUBLICAS.some(
+      (rota) => pathname === rota || pathname.startsWith(`${rota}/`),
+    );
 
   if (!user && !ehPublica) {
     const url = request.nextUrl.clone();

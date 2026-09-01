@@ -5,10 +5,10 @@ import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, LIMITES } from "@/lib/rate-limit";
 import {
-  rankingNoMaps,
-  SerpApiIndisponivelError,
+  rankingLocal,
+  SemFonteDeRankingError,
   type ResultadoLocal,
-} from "@/lib/serpapi";
+} from "@/lib/ranking";
 
 export type EstadoAnalise =
   | { tipo: "vazio" }
@@ -70,7 +70,7 @@ export async function analisarPosicao(
     // Sem coordenadas, o SerpApi decide o ponto por conta própria e o
     // resultado deixa de ser comparável entre execuções.
     const temPonto = Number.isFinite(lat) && Number.isFinite(lng);
-    const ranking = await rankingNoMaps(
+    const ranking = await rankingLocal(
       termo,
       temPonto ? lat : 0,
       temPonto ? lng : 0,
@@ -107,11 +107,12 @@ export async function analisarPosicao(
       ranking,
     };
   } catch (erro) {
-    if (erro instanceof SerpApiIndisponivelError) {
+    if (erro instanceof SemFonteDeRankingError) {
       return {
         tipo: "erro",
         mensagem:
-          "Busca de posição não configurada. Defina SERPAPI_KEY nas variáveis de ambiente.",
+          "Busca de posição não configurada. Defina as credenciais do DataForSEO " +
+          "ou a SERPAPI_KEY nas variáveis de ambiente.",
       };
     }
     return { tipo: "erro", mensagem: (erro as Error).message };
