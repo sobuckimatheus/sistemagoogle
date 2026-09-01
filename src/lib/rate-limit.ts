@@ -33,6 +33,13 @@ export const LIMITES = {
   serpapi: { recurso: "serpapi", maximo: 10, janelaMinutos: 60 },
   /** Places API é cobrada por consulta. */
   places: { recurso: "places", maximo: 30, janelaMinutos: 60 },
+  /**
+   * Autocomplete do Local Rank Checker. Teto mais alto porque uma única busca
+   * dispara várias chamadas — uma por pausa na digitação —, e o `sessionToken`
+   * faz o Google cobrar o conjunto como um evento só. O limite aqui existe
+   * contra automação, não contra uso normal.
+   */
+  autocomplete: { recurso: "autocomplete", maximo: 150, janelaMinutos: 60 },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */
   ia: { recurso: "ia", maximo: 40, janelaMinutos: 60 },
   /**

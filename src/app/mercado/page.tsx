@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { FormularioMercado } from "./formulario";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Análise de Mercado — Painel GBP" };
+export const metadata = { title: "Verificador de Posição — Painel GBP" };
 
 export default async function MercadoPage() {
   const { conta } = await exigirContaAtiva();
@@ -24,12 +24,13 @@ export default async function MercadoPage() {
           ← início
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Análise de Mercado
+          Verificador de Posição
         </h1>
         <p className="text-sm text-neutral-500">
-          Descubra a posição de qualquer negócio no Maps — inclusive de quem
-          ainda não é seu cliente. Usa dados públicos, sem exigir conexão com o
-          Google.
+          Escolha a empresa, diga qual serviço, e veja em que posição ela
+          aparece no Google Maps. Funciona com qualquer negócio — inclusive de
+          quem ainda não é seu cliente —, porque usa só dado público, sem
+          exigir conexão com o Google.
         </p>
       </header>
 
@@ -37,7 +38,7 @@ export default async function MercadoPage() {
 
       {historico.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">Análises anteriores</h2>
+          <h2 className="text-sm font-medium">Verificações anteriores</h2>
           <ul className="flex flex-col gap-2 text-sm">
             {historico.map((h) => (
               <li

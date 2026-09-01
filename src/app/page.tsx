@@ -48,7 +48,7 @@ export default async function Home() {
           Conta
         </Link>
         <Link href="/mercado" className="text-sm underline text-neutral-600 dark:text-neutral-400">
-          Análise de Mercado
+          Verificador de Posição
         </Link>
         <form action={sair}>
           <button

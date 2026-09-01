@@ -150,6 +150,30 @@ gratuito, mas o que varia entre planos é o limite de *keyword lookups* — 401 
 idêntica dentro de 24h não conta de novo, então repita a mesma consulta ao
 depurar em vez de variar o termo.
 
+### 3.05 Fotos do perfil no Verificador de Posição
+
+O cartão do negócio selecionado mostra a foto do Perfil de Empresa, vinda da
+Places API por `/api/places/foto` (a chave não pode ir para o navegador, e a
+rota faz cache de um dia porque cada foto é cobrada).
+
+**Hoje a foto não aparece:** a chave atual não recebe o campo `photos`. Não é
+o código nem o lugar — testado com o Cristo Redentor, que tem milhares de
+fotos no Maps: `rating` volta, `photos` some, inclusive com `fieldMask=*`.
+
+Para habilitar, no projeto do Google Cloud:
+
+1. APIs e Serviços → Credenciais → a chave usada em `GOOGLE_PLACES_API_KEY` →
+   em **Restrições de API**, confirme que "Places API (New)" está liberada.
+2. Confirme que o faturamento do projeto cobre os SKUs de detalhes de lugar
+   que incluem mídia — os campos de foto são cobrados em faixa diferente de
+   `rating` e `location`, que já funcionam.
+3. A Places API **legada** está desativada neste projeto (confirmado: responde
+   `REQUEST_DENIED` com "You're calling a legacy API"). Não tente voltar por
+   ela; a nova é a suportada.
+
+Enquanto isso, a tela funciona: o cartão mostra um espaço com "sem foto" e o
+resto do fluxo — seleção, coordenadas e posição — não depende disso.
+
 ### 3.1 Google Ads (Keyword Planner)
 
 O destino. Quatro variáveis:
