@@ -42,12 +42,12 @@ export function PaginaIsca() {
             Grátis · sem cadastro
           </span>
           <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
-            Em que posição sua empresa aparece no Google?
+            Até onde sua empresa é encontrada no Google?
           </h1>
           <p className="mx-auto max-w-xl text-base text-neutral-600 dark:text-neutral-400 sm:text-lg">
-            Quando alguém procura o serviço que você vende, o Google mostra uma
-            lista. Descubra em que lugar dessa lista você está — e quem aparece
-            antes.
+            Quem está na sua porta te acha. E quem está a cinco quilômetros?
+            Descubra a que distância seus clientes param de encontrar você — e
+            quem aparece no seu lugar.
           </p>
         </section>
 
@@ -56,9 +56,9 @@ export function PaginaIsca() {
         <section className="grid gap-6 border-t border-neutral-200 pt-10 dark:border-neutral-800 sm:grid-cols-3">
           {[
             {
-              titulo: "Quase ninguém passa do terceiro",
+              titulo: "Perto de você, todo mundo é primeiro",
               texto:
-                "A lista do Maps mostra três negócios antes de exigir um clique a mais. Estar em quarto já é ficar escondido atrás de um botão.",
+                "O Maps ordena por proximidade também. Por isso um teste feito do seu endereço engana: o que importa é até onde você continua aparecendo.",
             },
             {
               titulo: "Posição não é sorte",
@@ -91,7 +91,7 @@ export function PaginaIsca() {
             {[
               {
                 p: "De onde vem esse número?",
-                r: "Da mesma lista que o Google mostra ao seu cliente, consultada a partir do endereço da sua empresa. Nós não reordenamos nada.",
+                r: "Da mesma lista que o Google mostra ao seu cliente. Consultamos a várias distâncias do seu endereço e em quatro direções, porque a posição muda conforme de onde a pessoa procura. Não reordenamos nada.",
               },
               {
                 p: "Por que a posição muda dependendo de quem busca?",

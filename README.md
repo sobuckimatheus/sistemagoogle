@@ -155,6 +155,39 @@ SerpApi, baixe esse número** — lá são 100 buscas por mês no plano gratuito
 
 Quem está logado não passa por nenhuma dessas travas: já paga pela cota.
 
+## Alcance, não posição
+
+Medir a posição a partir do endereço do próprio negócio dá **sempre primeiro
+lugar**: a distância é zero e o Maps ordena por proximidade além de
+relevância. Medido assim, todo cliente se sente líder — e um número que nunca
+dói não vende nada.
+
+Medição real, três pizzarias em Chapecó com o termo "pizzaria":
+
+| | Do próprio endereço | Buscando pela cidade |
+|---|---|---|
+| Comercial pizzas | 1º | fora do top 20 |
+| Pizzaria Patagônica | 2º | fora do top 20 |
+| Pizzeria Siciliana | 1º | fora do top 20 |
+
+Os dois extremos são inúteis. Por isso `src/lib/ranking/alcance.ts` mede em
+anéis — na porta, a 2 km e a 5 km, em quatro direções cada — e reporta até
+onde o negócio ainda é encontrado:
+
+```
+na porta   1º
+a 1 km     1º, 2º, 1º, 4º
+a 2 km     1º, 1º, 1º, 5º
+a 5 km     fora, fora, fora, 2º
+```
+
+"Você domina dois quarteirões e some a cinco quilômetros" é verdade,
+específico, e é a informação que o dono não tem.
+
+Nove consultas por verificação, cerca de US$ 0,018. Isso só é viável com o
+DataForSEO: com as 100 buscas mensais do plano gratuito do SerpApi, uma única
+verificação consumiria 9% da cota do mês.
+
 ## Posição no Maps
 
 `src/lib/ranking/` escolhe a fonte, com a mesma ideia da camada de volume:

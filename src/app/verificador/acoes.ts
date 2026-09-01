@@ -5,11 +5,8 @@ import { headers } from "next/headers";
 import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, ipDaRequisicao, LIMITES } from "@/lib/rate-limit";
-import {
-  rankingLocal,
-  SemFonteDeRankingError,
-  type ResultadoLocal,
-} from "@/lib/ranking";
+import { SemFonteDeRankingError, type ResultadoLocal } from "@/lib/ranking";
+import { medirAlcance, type Anel } from "@/lib/ranking/alcance";
 
 export type EstadoVerificacao =
   | { tipo: "erro"; mensagem: string }
@@ -18,10 +15,13 @@ export type EstadoVerificacao =
       negocio: string;
       placeId: string;
       termo: string;
-      posicao: number | null;
-      /** Quantos concorrentes aparecem antes dele. */
-      concorrentesAcima: number;
+      /** Posição medida do endereço do próprio negócio. */
+      naPorta: number | null;
+      /** Até onde ainda é encontrado, em km. */
+      alcanceKm: number | null;
+      aneis: Anel[];
       ranking: ResultadoLocal[];
+      kmDoRanking: number;
     };
 
 /**
@@ -84,19 +84,16 @@ export async function verificarPosicao(
     }
   }
 
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return {
+      tipo: "erro",
+      mensagem: "Não consegui localizar o endereço dessa empresa no mapa.",
+    };
+  }
+
   try {
-    const temPonto = Number.isFinite(lat) && Number.isFinite(lng);
-    const ranking = await rankingLocal(
-      termo,
-      temPonto ? lat : 0,
-      temPonto ? lng : 0,
-    );
-
-    const encontrado =
-      ranking.find((r) => r.placeId === placeId) ??
-      ranking.find((r) => r.titulo.toLowerCase() === nome.toLowerCase());
-
-    const posicao = encontrado?.posicao ?? null;
+    const medicao = await medirAlcance(termo, lat, lng, placeId, nome);
+    const posicao = medicao.naPorta;
 
     // Guarda o histórico de quem está logado; visitante anônimo não tem onde
     // pendurar o registro, e criar conta fantasma para isso seria pior.
@@ -105,11 +102,16 @@ export async function verificarPosicao(
         data: {
           accountId: sessaoAtiva.conta.id,
           queryName: nome,
-          businessName: encontrado?.titulo ?? nome,
+          businessName: nome,
           placeId,
           keyword: termo,
           position: posicao,
-          resultJson: ranking,
+          resultJson: {
+            alcanceKm: medicao.alcanceKm,
+            naPorta: medicao.naPorta,
+            aneis: medicao.aneis,
+            ranking: medicao.ranking,
+          },
         },
       });
     }
@@ -119,9 +121,11 @@ export async function verificarPosicao(
       negocio: nome,
       placeId,
       termo,
-      posicao,
-      concorrentesAcima: posicao ? posicao - 1 : ranking.length,
-      ranking,
+      naPorta: medicao.naPorta,
+      alcanceKm: medicao.alcanceKm,
+      aneis: medicao.aneis,
+      ranking: medicao.ranking,
+      kmDoRanking: medicao.kmDoRanking,
     };
   } catch (erro) {
     if (erro instanceof SemFonteDeRankingError) {
