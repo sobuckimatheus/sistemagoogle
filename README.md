@@ -109,11 +109,18 @@ depende do mesmo cron que ele vigia não vigia nada.
 
 ## Volume de busca
 
-`Keyword.volume` vem do Keyword Planner do Google. A fonte é trocável por
-`VOLUME_PROVIDER` (`src/lib/volume/`): a API do Google Ads é o destino — dado
-de origem, e a única que abre a média fechada para contas com investimento
-ativo — e o Mangools serve de ponte enquanto o developer token não é
-aprovado, ao custo de receber o número público do Planner, arredondado.
+`Keyword.volume` vem do Keyword Planner do Google, por uma de três fontes
+trocáveis em `VOLUME_PROVIDER` (`src/lib/volume/`):
+
+| `VOLUME_PROVIDER` | Custo | Precisão | Depende de |
+|---|---|---|---|
+| `google-ads` | zero | média fechada, com conta que investe | developer token aprovado |
+| `dataforseo` | pago por consulta | fechada (contas de Ads deles) | saldo na conta |
+| `mangools` | plano da conta | número público, arredondado | plano que libere a API |
+
+O Google Ads é o destino: mesmo dado, de graça e na origem. Os outros dois
+existem porque a aprovação do developer token não depende de nós — pode
+demorar semanas ou ser recusada.
 
 Isso **não** substitui o SerpApi, que faz outra coisa: posição no Maps para a
 Análise de Mercado. Volume e ranking são dados diferentes, não fontes

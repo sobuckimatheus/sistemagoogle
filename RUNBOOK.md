@@ -89,6 +89,7 @@ de Redirect URLs permitidas do projeto, senão o link volta para a home.
 | SerpApi | 100 buscas/mês no grátis | Análise de Mercado |
 | Google Ads (Keyword Planner) | operações/dia, sem custo por consulta | volume de palavras-chave |
 | Mangools (KWFinder) | keyword lookups do plano | volume, quando é a fonte ativa |
+| DataForSEO | saldo pré-pago, por consulta | volume, quando é a fonte ativa |
 | Anthropic | por token | gerações de texto |
 
 O rate limiting da aplicação (`src/lib/rate-limit.ts`) protege por conta e por
@@ -97,20 +98,27 @@ hora: SerpApi 10, Places 30, IA 40, volume de busca 12. Ajuste os números lá �
 
 ### 3.0 Escolha da fonte de volume
 
-`VOLUME_PROVIDER` decide: `google-ads` ou `mangools`. Em branco, usa o Google
-Ads quando configurado e cai no Mangools. Nenhuma fonte configurada não é erro
-— a tela mostra "volume indisponível" e o resto do módulo funciona.
+`VOLUME_PROVIDER` decide: `google-ads`, `dataforseo` ou `mangools`. Em branco,
+usa a melhor disponível, nessa ordem. Nenhuma fonte configurada não é erro — a
+tela mostra "volume indisponível" e o resto do módulo funciona.
 
 | Fonte | Burocracia | Custo | Precisão |
 |---|---|---|---|
 | Google Ads | MCC + aprovação do developer token | zero | média fechada, com conta que investe |
-| Mangools (KWFinder) | só a chave de API | plano da conta (há plano gratuito) | número público do Planner, arredondado |
+| DataForSEO | criar conta e por saldo | pago por consulta | fechada — consultam o Planner por contas próprias com investimento |
+| Mangools (KWFinder) | só a chave de API | plano da conta | número público do Planner, arredondado |
+
+**DataForSEO:** aceita o par `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (a senha
+de *API*, não a de login) ou o Base64 pronto em `DATAFORSEO_AUTH`. Ele responde
+**200 mesmo quando recusa** — o veredito está no `status_code` do corpo: 20000
+é sucesso, e a família 402xx é saldo insuficiente. O provedor e o script já
+tratam isso; se for depurar na mão, não confie no status HTTP.
 
 O Mangools é ponte, não destino: ele revende o mesmo dado do Keyword Planner,
 mas a versão pública dele. Quando o developer token sair, troque
 `VOLUME_PROVIDER` para `google-ads` — nada mais muda.
 
-Verificação, para qualquer uma das duas:
+Verificação, para qualquer uma das três:
 
 ```bash
 pnpm volume:testar
@@ -151,11 +159,12 @@ Três armadilhas, em ordem de frequência:
    configurada aqui deve ser a que de fato investe, não uma conta limpa criada
    para a integração.
 3. **Versão da API expira.** `VERSAO` em `src/lib/google/ads.ts` e em
-   `scripts/testar-volume.ts` (hoje `v21`)
-   é aposentada em cerca de um ano e a chamada passa a responder 404
-   `UNSUPPORTED_VERSION`. É o motivo mais comum de uma integração que
-   funcionava parar sozinha — confira a versão antes de suspeitar de
-   credencial.
+   `scripts/testar-volume.ts` (hoje `v25`). Cada versão vive cerca de um ano;
+   depois disso a chamada responde 404 com uma **página HTML**, não com erro
+   JSON da API — o que despista, porque não se parece com nada documentado.
+   A `v21` foi aposentada em agosto de 2026. É o motivo mais comum de uma
+   integração que funcionava parar sozinha: confira a versão antes de
+   suspeitar de credencial.
 
 Volume nulo na tela não é necessariamente erro: o Google não tem dado para todo
 termo, e `volumeSyncedAt` avança mesmo assim para o job não reconsultar o mesmo

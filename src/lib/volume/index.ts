@@ -2,6 +2,7 @@ import "server-only";
 
 import { serverEnv } from "@/lib/env/server";
 import { googleAdsConfigurado, volumeDeBusca } from "@/lib/google/ads";
+import { fonteDataForSeo } from "@/lib/volume/dataforseo";
 import { fonteMangools } from "@/lib/volume/mangools";
 import type { FonteDeVolume } from "@/lib/volume/tipos";
 
@@ -32,9 +33,13 @@ export function fonteDeVolume(): FonteDeVolume | null {
   if (escolhida === "mangools") {
     return fonteMangools.configurada() ? fonteMangools : null;
   }
+  if (escolhida === "dataforseo") {
+    return fonteDataForSeo.configurada() ? fonteDataForSeo : null;
+  }
 
   // Sem escolha explícita: a melhor fonte disponível.
   if (fonteGoogleAds.configurada()) return fonteGoogleAds;
+  if (fonteDataForSeo.configurada()) return fonteDataForSeo;
   if (fonteMangools.configurada()) return fonteMangools;
 
   return null;

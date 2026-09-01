@@ -42,8 +42,13 @@ const serverSchema = z.object({
 
   // Fonte do volume de busca. Sem valor explícito, usa Google Ads quando
   // configurado e cai no Mangools como ponte.
-  VOLUME_PROVIDER: z.enum(["google-ads", "mangools"]).optional(),
+  VOLUME_PROVIDER: z.enum(["google-ads", "mangools", "dataforseo"]).optional(),
   MANGOOLS_API_TOKEN: z.string().optional(),
+  // DataForSEO aceita as duas formas que o painel deles mostra: o par
+  // login/senha, ou o valor Base64 pronto para o header Authorization.
+  DATAFORSEO_LOGIN: z.string().optional(),
+  DATAFORSEO_PASSWORD: z.string().optional(),
+  DATAFORSEO_AUTH: z.string().optional(),
   // Alvo geográfico e idioma, nos mesmos identificadores do Google.
   // Padrão: 2076 (Brasil) e 1014 (português).
   VOLUME_LOCATION_ID: z.string().optional(),

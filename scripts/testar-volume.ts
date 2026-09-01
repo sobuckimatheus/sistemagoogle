@@ -5,7 +5,7 @@
  *   pnpm volume:testar "pizzaria bh" outro termo
  *
  * Testa a fonte que a aplicação usaria: `VOLUME_PROVIDER` quando definida,
- * senão Google Ads se configurado, senão Mangools.
+ * senão a melhor disponível (Google Ads, DataForSEO, Mangools, nessa ordem).
  *
  * Autocontido de propósito: não importa o código do app (que depende de
  * `server-only` e só roda dentro do Next). Assim ele serve para diagnosticar
@@ -16,7 +16,7 @@
  * cru do provedor.
  */
 
-const VERSAO = "v21";
+const VERSAO = "v25";
 
 /**
  * Variável declarada e vazia é o caso comum no `.env`, e `Number("")` é `0` —
@@ -79,10 +79,25 @@ async function accessToken(): Promise<string> {
   return (JSON.parse(corpo) as { access_token: string }).access_token;
 }
 
+type Fonte = "google-ads" | "mangools" | "dataforseo";
+
+function dataForSeoPronto(): boolean {
+  return Boolean(
+    process.env.DATAFORSEO_AUTH ||
+      (process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
+  );
+}
+
 /** Qual fonte a aplicação usaria, com o mesmo critério de `src/lib/volume`. */
-function fonteEscolhida(): "google-ads" | "mangools" {
+function fonteEscolhida(): Fonte {
   const explicita = process.env.VOLUME_PROVIDER;
-  if (explicita === "google-ads" || explicita === "mangools") return explicita;
+  if (
+    explicita === "google-ads" ||
+    explicita === "mangools" ||
+    explicita === "dataforseo"
+  ) {
+    return explicita;
+  }
 
   const adsPronto =
     process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
@@ -90,13 +105,118 @@ function fonteEscolhida(): "google-ads" | "mangools" {
     process.env.GOOGLE_ADS_REFRESH_TOKEN;
 
   if (adsPronto) return "google-ads";
+  if (dataForSeoPronto()) return "dataforseo";
   if (process.env.MANGOOLS_API_TOKEN) return "mangools";
 
   console.error(
     "✗ Nenhuma fonte configurada.\n" +
-      "  Defina MANGOOLS_API_TOKEN (mais rápido) ou as variáveis do Google Ads.",
+      "  Defina as variáveis do Google Ads, do DataForSEO ou do Mangools.",
   );
   process.exit(1);
+}
+
+async function testarDataForSeo(termo: string) {
+  if (!dataForSeoPronto()) {
+    console.error(
+      "✗ DataForSEO não configurado: defina DATAFORSEO_AUTH, ou o par\n" +
+        "  DATAFORSEO_LOGIN e DATAFORSEO_PASSWORD.",
+    );
+    process.exit(1);
+  }
+
+  const bruto = process.env.DATAFORSEO_AUTH?.trim();
+  const autorizacao = bruto
+    ? bruto.toLowerCase().startsWith("basic ")
+      ? bruto
+      : `Basic ${bruto}`
+    : `Basic ${Buffer.from(
+        `${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`,
+      ).toString("base64")}`;
+
+  console.log("Fonte          : DataForSEO");
+  console.log(`Credencial     : ${bruto ? "DATAFORSEO_AUTH" : "login + senha"}`);
+  console.log(`Local / idioma : ${LOCATION} / pt`);
+  console.log(`Termo de teste : "${termo}"\n`);
+
+  const resposta = await fetch(
+    "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live",
+    {
+      method: "POST",
+      headers: { authorization: autorizacao, "content-type": "application/json" },
+      body: JSON.stringify([
+        { keywords: [termo], location_code: LOCATION, language_code: "pt" },
+      ]),
+    },
+  );
+
+  const corpo = await resposta.text();
+
+  if (!resposta.ok) {
+    console.error(`✗ DataForSEO respondeu ${resposta.status}.\n`);
+    if (resposta.status === 401) {
+      console.error(
+        "Causa provável: credencial errada. Use a SENHA DE API do painel,\n" +
+          "não a senha de login da conta. Se colou o Base64 pronto, ele vai\n" +
+          "em DATAFORSEO_AUTH, não em DATAFORSEO_LOGIN.",
+      );
+    }
+    console.error(`\nResposta crua:\n${corpo.slice(0, 600)}`);
+    process.exit(1);
+  }
+
+  const dados = JSON.parse(corpo) as {
+    status_code?: number;
+    status_message?: string;
+    tasks?: {
+      status_code?: number;
+      status_message?: string;
+      result?: { keyword?: string; search_volume?: number | null }[];
+    }[];
+  };
+
+  // Responde 200 mesmo recusando: o veredito está no status_code do corpo.
+  if (dados.status_code !== 20000) {
+    console.error(
+      `✗ DataForSEO recusou (${dados.status_code}): ${dados.status_message}`,
+    );
+    if (String(dados.status_code).startsWith("402")) {
+      console.error("  Saldo insuficiente na conta.");
+    }
+    process.exit(1);
+  }
+
+  const tarefa = dados.tasks?.[0];
+  if (tarefa && tarefa.status_code !== 20000) {
+    console.error(
+      `✗ Tarefa recusada (${tarefa.status_code}): ${tarefa.status_message}`,
+    );
+    process.exit(1);
+  }
+
+  console.log("✓ Chamada aceita.\n");
+
+  const itens = tarefa?.result ?? [];
+  if (itens.length === 0) {
+    console.log("A resposta veio sem resultado para esse termo.");
+    return;
+  }
+
+  for (const item of itens) {
+    console.log(
+      `"${item.keyword}": ${
+        typeof item.search_volume === "number"
+          ? `${item.search_volume.toLocaleString("pt-BR")} buscas/mês`
+          : "sem volume"
+      }`,
+    );
+  }
+
+  console.log(
+    "\nO DataForSEO consulta o Keyword Planner pelas contas de Ads dele, que\n" +
+      "têm investimento — por isso o número costuma vir fechado. Ainda assim é\n" +
+      "revenda e é pago: quando o token do Google sair, VOLUME_PROVIDER=google-ads\n" +
+      "entrega o mesmo dado de graça.",
+  );
 }
 
 async function testarMangools(termo: string) {
@@ -309,6 +429,7 @@ async function main() {
   const fonte = fonteEscolhida();
 
   if (fonte === "mangools") await testarMangools(termo);
+  else if (fonte === "dataforseo") await testarDataForSeo(termo);
   else await testarGoogleAds(termo);
 }
 

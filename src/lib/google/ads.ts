@@ -24,12 +24,15 @@ import { fetchComRetry } from "@/lib/http";
 /**
  * Versão da API.
  *
- * O Google Ads aposenta cada versão em cerca de um ano e a chamada passa a
- * responder 404 com `UNSUPPORTED_VERSION`. Confira a versão corrente antes de
- * culpar credencial: é o motivo mais comum de uma integração que funcionava
- * parar do nada.
+ * O Google Ads aposenta cada versão em cerca de um ano. Depois disso a
+ * chamada responde 404 com uma **página HTML**, não com erro JSON da API — o
+ * que confunde, porque não se parece com nada documentado. Confira a versão
+ * corrente antes de culpar credencial: é o motivo mais comum de uma
+ * integração que funcionava parar do nada.
+ *
+ * Aposentadas até aqui: v21 (agosto de 2026).
  */
-const VERSAO = "v21";
+const VERSAO = "v25";
 
 /** Brasil. Lista completa em geo target constants da documentação. */
 const GEO_BRASIL = "geoTargetConstants/2076";
