@@ -115,12 +115,32 @@ export async function medirAlcance(
 
   // Em paralelo: são consultas independentes, e em série a espera somaria
   // meio minuto na cara do visitante.
+  //
+  // Cada ponto é isolado do vizinho. Um ponto que falha vira "não encontrado
+  // ali", não uma verificação perdida — o anel de 5 km costuma cair em área
+  // sem nada, e derrubar tudo por causa dele seria trocar uma informação
+  // parcial e útil por uma tela de erro.
   const medicoes = await Promise.all(
-    pontos.map(async (p) => ({
-      km: p.km,
-      ranking: await rankingLocal(termo, p.lat, p.lng),
-    })),
+    pontos.map(async (p) => {
+      try {
+        return {
+          km: p.km,
+          ranking: await rankingLocal(termo, p.lat, p.lng),
+          falhou: false,
+        };
+      } catch (erro) {
+        return { km: p.km, ranking: [] as ResultadoLocal[], falhou: true, erro };
+      }
+    }),
   );
+
+  // Se nenhum ponto respondeu, o problema é da integração e precisa aparecer:
+  // devolver "alcance zero" nesse caso seria mentir com cara de resultado.
+  if (medicoes.every((m) => m.falhou)) {
+    throw (medicoes[0] as { erro?: unknown }).erro instanceof Error
+      ? ((medicoes[0] as { erro: Error }).erro)
+      : new Error("Nenhum ponto de medição respondeu.");
+  }
 
   const naPorta = posicaoDe(
     medicoes.find((m) => m.km === 0)!.ranking,

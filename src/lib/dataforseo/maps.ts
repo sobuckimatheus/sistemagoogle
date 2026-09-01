@@ -25,6 +25,9 @@ import type { ResultadoLocal } from "@/lib/ranking/tipos";
 const ENDPOINT =
   "https://api.dataforseo.com/v3/serp/google/maps/live/advanced";
 
+/** Código de tarefa para "o Google não devolveu resultado para isto". */
+const SEM_RESULTADOS = 40102;
+
 export class DataForSeoIndisponivelError extends Error {
   constructor(detalhe: string) {
     super(detalhe);
@@ -125,6 +128,13 @@ export async function rankingPeloDataForSeo(
   }
 
   const tarefa = dados.tasks?.[0];
+
+  // 40102 é "No Search Results": o Google simplesmente não devolveu nada
+  // para aquele termo naquele ponto. É um fato sobre o mercado, não uma
+  // falha da integração — e tratar como erro derrubaria a medição inteira
+  // por causa de um único ponto vazio no anel mais distante.
+  if (tarefa?.status_code === SEM_RESULTADOS) return [];
+
   if (tarefa && tarefa.status_code !== 20000) {
     throw new DataForSeoIndisponivelError(
       `DataForSEO recusou a tarefa (${tarefa.status_code}): ${tarefa.status_message ?? "sem mensagem"}`,
