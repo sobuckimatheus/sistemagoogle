@@ -109,10 +109,29 @@ tela mostra "volume indisponível" e o resto do módulo funciona.
 | Mangools (KWFinder) | só a chave de API | plano da conta | número público do Planner, arredondado |
 
 **DataForSEO:** aceita o par `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (a senha
-de *API*, não a de login) ou o Base64 pronto em `DATAFORSEO_AUTH`. Ele responde
-**200 mesmo quando recusa** — o veredito está no `status_code` do corpo: 20000
-é sucesso, e a família 402xx é saldo insuficiente. O provedor e o script já
-tratam isso; se for depurar na mão, não confie no status HTTP.
+de *API*, não a de login) ou o Base64 pronto em `DATAFORSEO_AUTH`. Prefira o
+Base64: ele é copiado do painel já com o par correto, e some com a classe de
+erro "login errado" — que é indistinguível de "senha errada" na resposta deles.
+
+Ele responde **200 mesmo quando recusa** — o veredito está no `status_code` do
+corpo: 20000 é sucesso, 40100 é credencial inválida e a família 402xx é saldo
+insuficiente. O provedor e o script já tratam isso; se for depurar na mão, não
+confie no status HTTP.
+
+**Custo: US$ 0,09 por chamada, independente da quantidade de termos** (medido
+em 31/08/2026: 1 termo e 20 termos custaram igual). Por isso o provedor manda
+lotes de até 700 e o job mensal processa em lote — o mesmo trabalho feito termo
+a termo custaria 700 vezes mais. O caminho que ainda custa por evento é a
+criação de palavra-chave na tela: cada envio do formulário é uma chamada, então
+adicionar dez termos de uma vez custa US$ 0,09 e adicionar um por vez custa
+US$ 0,90.
+
+Para conferir saldo e login sem gastar nada:
+
+```bash
+curl -s -H "Authorization: $DATAFORSEO_AUTH" \
+  https://api.dataforseo.com/v3/appendix/user_data | head -40
+```
 
 O Mangools é ponte, não destino: ele revende o mesmo dado do Keyword Planner,
 mas a versão pública dele. Quando o developer token sair, troque

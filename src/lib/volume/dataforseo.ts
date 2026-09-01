@@ -31,8 +31,10 @@ const ENDPOINT =
  * Teto por requisição.
  *
  * O endpoint aceita até mil termos, e a cobrança é **por tarefa**, não por
- * palavra — lotes maiores custam literalmente menos. O teto abaixo do máximo
- * existe só para a falha de um lote não levar a lista inteira junto.
+ * palavra: medido em 2026-08-31, uma chamada com 1 termo e outra com 20
+ * custaram os mesmos US$ 0,09. Ou seja, lote grande é ordens de grandeza mais
+ * barato que termo a termo. O teto abaixo do máximo existe só para a falha de
+ * um lote não levar a lista inteira junto.
  */
 const TERMOS_POR_CHAMADA = 700;
 
