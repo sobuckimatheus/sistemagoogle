@@ -167,8 +167,8 @@ lugar**: a distância é zero e o Maps ordena por proximidade além de
 relevância. Medido assim, todo cliente se sente líder — e um número que nunca
 dói não vende nada.
 
-`src/lib/ranking/grade.ts` mede **25 pontos** (grade 5x5, 3 km entre pontos) e
-calcula duas coisas:
+`src/lib/ranking/grade.ts` mede **25 pontos** (grade 5x5, 1,5 km entre pontos —
+cantos a 4,2 km) e calcula duas coisas:
 
 - **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
   mercado; ausência conta zero.
@@ -178,15 +178,26 @@ Pontos onde o Google não devolve resultado nenhum ficam **fora da conta**:
 área sem esse tipo de negócio não é culpa de quem está sendo medido, e contar
 puniria quem tem mato em volta.
 
-**Calibração contra o Localo**, para uma pizzaria em Passo Fundo:
+**Calibração contra o Localo**, dois negócios reais:
 
-| | Nossa medição | Localo |
+| Espaçamento | Dra. Samantha (Localo: 3) | Somare (Localo: 16) |
 |---|---|---|
-| Visibilidade | 31% | 29% |
-| Posição média | 14,9 | "Rank 16" |
+| 3 km | 7,4 | 14,9 |
+| **1,5 km** | **3,7** | 9,8 |
 
-A proximidade indica que a conta é a mesma; tamanho e espaçamento da grade são
-escolha nossa.
+Nenhum espaçamento único reproduz os dois: o Localo distribui os pontos de
+forma não uniforme, densos no centro e esparsos fora. Ficamos com 1,5 km
+porque numa grade de 3 km os cantos caem a 8,5 km, e as ausências de lá
+afundavam a média de quem domina a própria cidade.
+
+**O número depende da área medida** — é decisão de produto, não fato da
+natureza. Ampliar a grade piora a posição de todo mundo; estreitar melhora. O
+que não muda é a ordem relativa: quem está mal continua atrás.
+
+A lista de concorrentes usa a **mesma conta**: cada um aparece com sua
+posição média nos mesmos 25 pontos. Antes ela vinha de um ponto só — o
+endereço do negócio analisado, onde ele é sempre primeiro —, e a tela dizia
+"sua posição média é 14º" logo acima de uma lista em que ele figurava em 1º.
 
 **Custo: US$ 0,05 por verificação** (25 × US$ 0,002). É o número a multiplicar
 antes de mexer no teto diário em `LIMITES`.

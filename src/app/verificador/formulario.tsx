@@ -163,10 +163,10 @@ function Resultado({
 
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">
-          Quem o Google mostra na sua região
+          Ranking médio na sua região
         </h2>
         <ol className="flex flex-col gap-1.5 text-sm">
-          {estado.ranking.slice(0, 10).map((r) => {
+          {estado.medicao.ranking.slice(0, 10).map((r) => {
             const ehVoce = r.placeId
               ? r.placeId === estado.placeId
               : r.titulo.toLowerCase() === estado.negocio.toLowerCase();
@@ -181,8 +181,8 @@ function Resultado({
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="w-6 shrink-0 text-neutral-500 tabular-nums">
-                    {r.posicao}
+                  <span className="w-10 shrink-0 text-neutral-500 tabular-nums">
+                    {r.posicao}º
                   </span>
                   <FotoNegocio foto={r.foto} nome={r.titulo} tamanho="sm" />
                   <span className="flex min-w-0 flex-col">
@@ -210,7 +210,10 @@ function Resultado({
           })}
         </ol>
         <p className="text-xs text-neutral-500">
-          Ordem exata devolvida pelo Google, sem reordenação nossa.
+          Posição média de cada negócio nos mesmos {m.totalPontos} pontos — a
+          mesma conta do seu número acima. Quem fica em 1º num ponto e some nos
+          outros termina atrás de quem fica em 5º em todos, que é como o
+          cliente da região de fato encontra.
         </p>
       </div>
 

@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { contaAtivaOuNulo } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, ipDaRequisicao, LIMITES } from "@/lib/rate-limit";
-import { SemFonteDeRankingError, type ResultadoLocal } from "@/lib/ranking";
+import { SemFonteDeRankingError } from "@/lib/ranking";
 import { medirEmGrade, type MedicaoEmGrade } from "@/lib/ranking/grade";
 
 export type EstadoVerificacao =
@@ -16,7 +16,6 @@ export type EstadoVerificacao =
       placeId: string;
       termo: string;
       medicao: MedicaoEmGrade;
-      ranking: ResultadoLocal[];
     };
 
 /**
@@ -121,7 +120,6 @@ export async function verificarPosicao(
       placeId,
       termo,
       medicao,
-      ranking: medicao.ranking,
     };
   } catch (erro) {
     if (erro instanceof SemFonteDeRankingError) {

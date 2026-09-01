@@ -22,8 +22,25 @@ import type { ResultadoLocal } from "@/lib/ranking/tipos";
 /** Lado da grade. 5x5 = 25 pontos, o padrão do setor. */
 const LADO = 5;
 
-/** Distância entre pontos, em km. ±6 km cobre a área útil de uma cidade média. */
-const ESPACAMENTO_KM = 3;
+/**
+ * Distância entre pontos, em km.
+ *
+ * 1,5 km põe os cantos da grade a 4,2 km do negócio — a área que um comércio
+ * local de fato disputa. Foi calibrado, não escolhido no olho:
+ *
+ * | espaçamento | Dra. Samantha (Localo: 3) | Somare (Localo: 16) |
+ * |---|---|---|
+ * | 3 km   | 7,4 | 14,9 |
+ * | 1,5 km | 3,7 | 9,8  |
+ *
+ * A 3 km os cantos caem a 8,5 km, e as ausências de lá afundavam a média de
+ * quem domina a própria cidade. O Localo distribui os pontos de forma não
+ * uniforme — densos no centro, esparsos fora —, o que nenhum espaçamento
+ * único reproduz; entre errar para o lado do negócio bem posicionado e errar
+ * para o lado do mal posicionado, o primeiro é o que descreve a realidade
+ * comercial de quem está sendo medido.
+ */
+const ESPACAMENTO_KM = 1.5;
 
 /** Profundidade da busca: além disso ninguém é encontrado. */
 const FORA_DA_LISTA = 21;
@@ -54,8 +71,24 @@ export type MedicaoEmGrade = {
   pontosOndeAparece: number;
   totalPontos: number;
   pontos: PontoDaGrade[];
-  /** Concorrentes vistos do centro da região. */
-  ranking: ResultadoLocal[];
+  /** Ranking médio da região — a mesma conta da manchete, aplicada a todos. */
+  ranking: ResultadoRegional[];
+};
+
+/**
+ * Um concorrente com sua posição média na região.
+ *
+ * Existe para que a lista e a manchete venham da mesma conta. Antes a lista
+ * mostrava o ranking de um ponto só — o endereço do negócio analisado, onde
+ * ele é sempre primeiro —, então a tela dizia "sua posição média é 14º" logo
+ * acima de uma lista em que ele aparecia em 1º. Dois números verdadeiros que
+ * se contradiziam.
+ */
+export type ResultadoRegional = Omit<ResultadoLocal, "posicao"> & {
+  /** Média das posições na região, com ausência valendo 21. */
+  posicao: number;
+  /** Em quantos pontos apareceu, de quantos medidos com mercado. */
+  aparicoes: number;
 };
 
 function coordenadasDaGrade(lat: number, lng: number) {
@@ -157,6 +190,12 @@ export async function medirEmGrade(
   const centro = medicoes.find((m) => m.centro) ?? medicoes[0];
   const indiceCentro = medicoes.indexOf(centro);
 
+  const rankingRegional = agregarRegiao(
+    medicoes.map((m) => m.ranking),
+    comMercado.length,
+    { placeId, nome },
+  );
+
   return {
     posicaoMedia: posicaoMedia === null ? null : Math.round(posicaoMedia * 10) / 10,
     visibilidade,
@@ -168,6 +207,79 @@ export async function medirEmGrade(
     pontosOndeAparece: encontradas.length,
     totalPontos: pontos.length,
     pontos,
-    ranking: centro.ranking,
+    ranking: rankingRegional,
   };
+}
+
+/**
+ * Ranking médio da região.
+ *
+ * Cada negócio recebe a média das posições dele nos pontos com mercado,
+ * contando 21 onde não apareceu — exatamente a conta da manchete. Um negócio
+ * que fica em 1º num ponto e some nos outros vinte e quatro termina atrás de
+ * quem fica em 5º em todos, que é como o cliente da região de fato o
+ * encontra.
+ */
+function agregarRegiao(
+  rankings: ResultadoLocal[][],
+  pontosComMercado: number,
+  alvo: { placeId: string; nome: string },
+): ResultadoRegional[] {
+  const acumulado = new Map<
+    string,
+    { soma: number; aparicoes: number; exemplo: ResultadoLocal }
+  >();
+
+  const identidade = (r: ResultadoLocal) =>
+    r.placeId ?? r.titulo.toLowerCase();
+
+  for (const ranking of rankings) {
+    for (const item of ranking) {
+      const chave = identidade(item);
+      const atual = acumulado.get(chave);
+      if (atual) {
+        atual.soma += item.posicao;
+        atual.aparicoes += 1;
+      } else {
+        acumulado.set(chave, { soma: item.posicao, aparicoes: 1, exemplo: item });
+      }
+    }
+  }
+
+  const denominador = Math.max(pontosComMercado, 1);
+
+  const lista: ResultadoRegional[] = [...acumulado.values()].map((registro) => {
+    const ausencias = denominador - registro.aparicoes;
+    const media = (registro.soma + ausencias * FORA_DA_LISTA) / denominador;
+
+    return {
+      ...registro.exemplo,
+      posicao: Math.round(media * 10) / 10,
+      aparicoes: registro.aparicoes,
+    };
+  });
+
+  // O negócio analisado precisa estar na lista mesmo sem nunca ter aparecido:
+  // é a única forma de a tela mostrar onde ele está — ou não está.
+  const presente = lista.some(
+    (r) =>
+      r.placeId === alvo.placeId ||
+      r.titulo.toLowerCase() === alvo.nome.toLowerCase(),
+  );
+
+  if (!presente) {
+    lista.push({
+      posicao: FORA_DA_LISTA,
+      aparicoes: 0,
+      titulo: alvo.nome,
+      placeId: alvo.placeId,
+      nota: null,
+      totalAvaliacoes: null,
+      endereco: null,
+      tipo: null,
+      foto: null,
+    });
+  }
+
+  return lista.sort((a, b) => a.posicao - b.posicao);
 }
