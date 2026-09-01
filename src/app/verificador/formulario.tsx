@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
+import { FotoNegocio } from "@/components/foto-negocio";
 import {
   SeletorDeNegocio,
   type NegocioSelecionado,
@@ -169,11 +170,12 @@ function Resultado({
                     : "border-neutral-200 dark:border-neutral-800"
                 }`}
               >
-                <span className="flex items-center gap-3">
-                  <span className="w-6 text-neutral-500 tabular-nums">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="w-6 shrink-0 text-neutral-500 tabular-nums">
                     {r.posicao}
                   </span>
-                  <span className="flex flex-col">
+                  <FotoNegocio foto={r.foto} nome={r.titulo} tamanho="sm" />
+                  <span className="flex min-w-0 flex-col">
                     <span className={ehVoce ? "font-bold" : "font-medium"}>
                       {r.titulo}
                       {ehVoce && (

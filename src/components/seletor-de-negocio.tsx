@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { FotoNegocio } from "@/components/foto-negocio";
+
 export type Sugestao = {
   placeId: string;
   principal: string;
@@ -30,20 +32,6 @@ export type NegocioSelecionado = {
 const ESPERA_MS = 350;
 
 /**
- * Origem da imagem do perfil.
- *
- * Duas fontes possíveis: o DataForSEO devolve uma URL pronta do Google, e a
- * Places API devolve um nome de recurso que só nossa rota sabe resolver (ela
- * guarda a chave). Distinguir pelo prefixo evita um campo a mais só para
- * dizer de onde veio.
- */
-function urlDaFoto(foto: string): string {
-  return foto.startsWith("http")
-    ? foto
-    : `/api/places/foto?nome=${encodeURIComponent(foto)}`;
-}
-
-/**
  * Busca de negócio no Google com autocomplete.
  *
  * Compartilhado entre a tela interna e a página pública: as duas fazem
@@ -70,6 +58,17 @@ export function SeletorDeNegocio({
   const [buscando, setBuscando] = useState(false);
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  /**
+   * Sugestão escolhida enquanto o detalhamento não chega.
+   *
+   * Buscar detalhes e foto leva um par de segundos. Sem isto, o clique não
+   * produz nada visível e a pessoa clica de novo — em outro negócio, às
+   * vezes. Mostrar o cartão na hora, com o nome que ela já viu na lista e a
+   * foto em esqueleto, transforma a espera em progresso.
+   */
+  const [carregandoEscolha, setCarregandoEscolha] = useState<Sugestao | null>(
+    null,
+  );
 
   const campoId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +141,7 @@ export function SeletorDeNegocio({
     setAberto(false);
     setBuscando(true);
     setErro(null);
+    setCarregandoEscolha(sugestao);
 
     try {
       const resposta = await fetch(
@@ -160,6 +160,7 @@ export function SeletorDeNegocio({
       sessaoRef.current = crypto.randomUUID();
     } finally {
       setBuscando(false);
+      setCarregandoEscolha(null);
     }
   }
 
@@ -172,6 +173,23 @@ export function SeletorDeNegocio({
 
   if (negocio) {
     return <CartaoDoNegocio negocio={negocio} aoTrocar={limpar} />;
+  }
+
+  if (carregandoEscolha) {
+    return (
+      <div className="flex items-center gap-4 rounded-lg border-2 border-neutral-300 p-4 dark:border-neutral-700">
+        <FotoNegocio foto={null} nome="" carregando />
+        <div className="flex flex-1 flex-col gap-1">
+          <span className="font-medium">{carregandoEscolha.principal}</span>
+          {carregandoEscolha.secundario && (
+            <span className="text-xs text-neutral-500">
+              {carregandoEscolha.secundario}
+            </span>
+          )}
+          <span className="text-xs text-neutral-400">carregando perfil…</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -241,21 +259,7 @@ function CartaoDoNegocio({
 }) {
   return (
     <div className="flex items-center gap-4 rounded-lg border-2 border-neutral-900 p-4 dark:border-neutral-100">
-      {negocio.foto ? (
-        /* A foto vem da Places API por uma rota nossa, que já faz cache. O
-           otimizador do Next exigiria um domínio remoto fixo, e aqui a
-           origem varia por foto. */
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={urlDaFoto(negocio.foto)}
-          alt={`Foto de ${negocio.nome}`}
-          className="size-16 shrink-0 rounded-md object-cover"
-        />
-      ) : (
-        <div className="flex size-16 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-center text-[10px] leading-tight text-neutral-400 dark:bg-neutral-800">
-          sem foto
-        </div>
-      )}
+      <FotoNegocio foto={negocio.foto} nome={negocio.nome} />
 
       <div className="flex flex-1 flex-col gap-0.5">
         <span className="font-medium">{negocio.nome}</span>
