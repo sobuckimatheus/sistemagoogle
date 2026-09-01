@@ -172,7 +172,11 @@ cantos a 4,2 km) e calcula duas coisas:
 
 - **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
   mercado; ausência conta zero.
-- **Posição média** — média das posições, contando ausência como 21.
+- **Posição média** — média das posições, contando ausência como 21, exibida
+  como **número inteiro**. Usa o piso, não o arredondamento: quem tem média
+  3,7 aparece em terceiro na maioria das buscas, e promovê-lo a "4º"
+  descreveria pior a experiência de quem procura. A média com fração fica
+  guardada no histórico, onde ainda serve para comparar duas medições.
 
 Pontos onde o Google não devolve resultado nenhum ficam **fora da conta**:
 área sem esse tipo de negócio não é culpa de quem está sendo medido, e contar

@@ -56,12 +56,20 @@ export type PontoDaGrade = {
 
 export type MedicaoEmGrade = {
   /**
-   * Posição média na região, contando ausência como 21.
+   * Posição média na região, contando ausência como 21 — **inteira**.
    *
    * É o número de manchete. Difere da posição "na porta" de propósito: aquela
    * é sempre boa e não informa nada.
+   *
+   * Inteira porque posição quebrada não existe no mundo do cliente: ninguém é
+   * "3,7º lugar" numa lista. Usa o piso, e não o arredondamento, para não
+   * empurrar quem está em 3,7 para a quarta posição — a média exata fica em
+   * `posicaoMediaExata` para o histórico, onde a fração ainda serve para
+   * comparar duas medições.
    */
   posicaoMedia: number | null;
+  /** A mesma média, sem arredondar. Só para registro e comparação. */
+  posicaoMediaExata: number | null;
   /** 0 a 1. Quanto da região enxerga o negócio, com peso maior no topo. */
   visibilidade: number;
   /** Mediana das posições onde aparece — o "quando aparece, aparece em Xº". */
@@ -85,11 +93,24 @@ export type MedicaoEmGrade = {
  * se contradiziam.
  */
 export type ResultadoRegional = Omit<ResultadoLocal, "posicao"> & {
-  /** Média das posições na região, com ausência valendo 21. */
+  /** Média das posições na região, inteira — mesma regra da manchete. */
   posicao: number;
+  /** A média sem arredondar, usada para ordenar sem empate artificial. */
+  posicaoExata: number;
   /** Em quantos pontos apareceu, de quantos medidos com mercado. */
   aparicoes: number;
 };
+
+/**
+ * Converte média em posição de lista.
+ *
+ * Piso, e não arredondamento: quem tem média 3,7 aparece em terceiro na
+ * maioria das buscas, e promovê-lo a "4º" descreveria pior a experiência real
+ * de quem procura. O mínimo é 1 — não existe posição zero.
+ */
+function posicaoInteira(media: number): number {
+  return Math.max(1, Math.floor(media));
+}
 
 function coordenadasDaGrade(lat: number, lng: number) {
   const meio = Math.floor(LADO / 2);
@@ -197,7 +218,9 @@ export async function medirEmGrade(
   );
 
   return {
-    posicaoMedia: posicaoMedia === null ? null : Math.round(posicaoMedia * 10) / 10,
+    posicaoMedia: posicaoMedia === null ? null : posicaoInteira(posicaoMedia),
+    posicaoMediaExata:
+      posicaoMedia === null ? null : Math.round(posicaoMedia * 10) / 10,
     visibilidade,
     posicaoTipica: ordenadas.length
       ? ordenadas[Math.floor(ordenadas.length / 2)]
@@ -254,7 +277,8 @@ function agregarRegiao(
 
     return {
       ...registro.exemplo,
-      posicao: Math.round(media * 10) / 10,
+      posicao: posicaoInteira(media),
+      posicaoExata: media,
       aparicoes: registro.aparicoes,
     };
   });
@@ -270,6 +294,7 @@ function agregarRegiao(
   if (!presente) {
     lista.push({
       posicao: FORA_DA_LISTA,
+      posicaoExata: FORA_DA_LISTA,
       aparicoes: 0,
       titulo: alvo.nome,
       placeId: alvo.placeId,
@@ -281,5 +306,5 @@ function agregarRegiao(
     });
   }
 
-  return lista.sort((a, b) => a.posicao - b.posicao);
+  return lista.sort((a, b) => a.posicaoExata - b.posicaoExata);
 }

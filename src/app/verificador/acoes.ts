@@ -88,8 +88,7 @@ export async function verificarPosicao(
   try {
     const medicao = await medirEmGrade(termo, lat, lng, placeId, nome);
     // Guarda a posição média, não a da porta: é ela que descreve a região.
-    const posicao =
-      medicao.posicaoMedia === null ? null : Math.round(medicao.posicaoMedia);
+    const posicao = medicao.posicaoMedia;
 
     // Guarda o histórico de quem está logado; visitante anônimo não tem onde
     // pendurar o registro, e criar conta fantasma para isso seria pior.
@@ -105,6 +104,7 @@ export async function verificarPosicao(
           resultJson: {
             visibilidade: medicao.visibilidade,
             posicaoMedia: medicao.posicaoMedia,
+            posicaoMediaExata: medicao.posicaoMediaExata,
             posicaoTipica: medicao.posicaoTipica,
             naPorta: medicao.naPorta,
             pontos: medicao.pontos,

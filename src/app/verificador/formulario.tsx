@@ -133,7 +133,7 @@ function Resultado({
             Sua posição média na região
           </span>
           <p className="text-5xl font-bold tabular-nums sm:text-6xl">
-            {m.posicaoMedia ? `${m.posicaoMedia}º` : "não aparece"}
+            {m.posicaoMedia ? `${m.posicaoMedia}º lugar` : "não aparece"}
           </p>
         </div>
 
