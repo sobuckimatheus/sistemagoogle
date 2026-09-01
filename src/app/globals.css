@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * Lumora — tema único, escuro.
+ *
+ * Escuro sempre, e não "escuro por preferência do sistema": um painel que o
+ * cliente abre para encarar números de receita precisa de uma superfície só,
+ * calibrada, em vez de duas meio testadas. Preto quente (base amarela, não
+ * azul) para o ouro da marca assentar sem vibrar.
+ */
+
+@theme {
+  /* superfícies, da mais funda para a mais alta */
+  --color-fundo: #0c0b0a;
+  --color-superficie: #191611;
+  --color-superficie-alta: #232019;
+  --color-borda: #2e2924;
+  --color-borda-forte: #3d372f;
+
+  /* texto, do mais presente ao mais discreto */
+  --color-texto: #f3efe7;
+  --color-texto-suave: #a49b8d;
+  --color-texto-fraco: #8b8376;
+
+  /* ouro da marca: navegação ativa, ações primárias, marcadores */
+  --color-ouro: #e0b064;
+  --color-ouro-claro: #f0cd93;
+  --color-ouro-fundo: #2a2015;
+
+  /* leitura de desempenho — nunca decorativas, só sinal */
+  --color-alta: #5cc98d;
+  --color-baixa: #e9736b;
+  --color-atencao: #e0a355;
+
+  --font-sans: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--fonte-serif), ui-serif, Georgia, serif;
+
+  --radius-cartao: 0.875rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  background: var(--color-fundo);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-fundo);
+  color: var(--color-texto);
+  font-family: var(--font-sans);
+}
+
+/* Números em tabela alinham na coluna; nada pula ao atualizar o período. */
+.numero {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* O foco precisa ser visível no escuro — ouro sobre preto, sempre. */
+:focus-visible {
+  outline: 2px solid var(--color-ouro);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

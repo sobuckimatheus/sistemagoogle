@@ -1,75 +1,54 @@
-const formatador = new Intl.NumberFormat("pt-BR");
+import { Icone, type NomeDeIcone } from "@/components/lumora/icones";
+import { numero, Variacao } from "@/components/lumora/primitivos";
 
-export const dinheiro = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-  maximumFractionDigits: 0,
-});
+// Os formatadores vivem em primitivos; reexportados aqui porque o relatório
+// já os importa deste caminho.
+export { dinheiro, percentual } from "@/components/lumora/primitivos";
 
-export function percentual(v: number, casas = 1) {
-  return `${(v * 100).toFixed(casas).replace(".", ",")}%`;
-}
-
+/**
+ * Cartão da faixa de métricas do topo.
+ *
+ * Todos os cartões da faixa dividem uma linha só, sem borda entre eles: são
+ * uma leitura contínua do período, não seis blocos independentes.
+ */
 export function CartaoMetrica({
   titulo,
+  icone,
   valor,
   variacao,
   sufixo,
+  rodape,
   temHistorico,
 }: {
   titulo: string;
+  icone: NomeDeIcone;
   valor: number | string | null;
   variacao?: number | null;
   sufixo?: string;
+  rodape?: React.ReactNode;
   temHistorico: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-      <span className="text-xs text-neutral-500">{titulo}</span>
-      <span className="text-2xl font-semibold tabular-nums">
+    <div className="flex flex-col gap-2 px-5 py-4">
+      <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-texto-fraco">
+        <Icone nome={icone} className="size-4" />
+        {titulo}
+      </p>
+
+      <p className="numero text-[28px] font-semibold leading-none text-texto">
         {valor === null
           ? "—"
           : typeof valor === "number"
-            ? formatador.format(valor)
+            ? numero.format(valor)
             : valor}
         {sufixo && (
-          <span className="text-base font-normal text-neutral-500">
+          <span className="text-base font-normal text-texto-fraco">
             {sufixo}
           </span>
         )}
-      </span>
-      <Variacao valor={variacao} temHistorico={temHistorico} />
+      </p>
+
+      {rodape ?? <Variacao valor={variacao} temHistorico={temHistorico} />}
     </div>
-  );
-}
-
-function Variacao({
-  valor,
-  temHistorico,
-}: {
-  valor: number | null | undefined;
-  temHistorico: boolean;
-}) {
-  // Distinguir "não mudou" de "não há com o que comparar" evita o pior erro
-  // do dashboard: exibir uma variação inventada como se fosse medição.
-  if (!temHistorico || valor === null || valor === undefined) {
-    return (
-      <span className="text-xs text-neutral-400">
-        sem período anterior para comparar
-      </span>
-    );
-  }
-
-  const positivo = valor >= 0;
-  return (
-    <span
-      className={`text-xs tabular-nums ${
-        positivo
-          ? "text-green-700 dark:text-green-400"
-          : "text-red-700 dark:text-red-400"
-      }`}
-    >
-      {positivo ? "▲" : "▼"} {percentual(Math.abs(valor))} vs. período anterior
-    </span>
   );
 }

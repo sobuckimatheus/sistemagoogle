@@ -42,6 +42,29 @@ export type Totais = {
   agendamentos: number;
 };
 
+/**
+ * Ações por dia no período, para o gráfico do card financeiro.
+ *
+ * Só as três ações que viram receita na fórmula — a barra do gráfico e o
+ * número grande do card precisam sair da mesma conta, ou a leitura mente.
+ */
+async function serieDeAcoes(businessId: string, periodo: Periodo) {
+  const linhas = await prisma.performanceDaily.findMany({
+    where: { businessId, date: { gte: periodo.inicio, lt: periodo.fim } },
+    select: {
+      date: true,
+      calls: true,
+      directionRequests: true,
+      websiteClicks: true,
+    },
+    orderBy: { date: "asc" },
+  });
+
+  return linhas.map((l) => ({
+    data: l.date,
+    acoes: l.calls + l.directionRequests + l.websiteClicks,
+  }));
+}
 
 async function somar(businessId: string, periodo: Periodo): Promise<Totais> {
   const r = await prisma.performanceDaily.aggregate({
@@ -82,11 +105,12 @@ export async function montarDashboard(businessId: string, dias: number) {
   const periodo = periodoDeDias(dias);
   const anterior = periodoAnterior(periodo);
 
-  const [negocio, atual, passado, snapshotAtual, snapshotAnterior] =
+  const [negocio, atual, passado, serie, snapshotAtual, snapshotAnterior] =
     await Promise.all([
       prisma.business.findUniqueOrThrow({ where: { id: businessId } }),
       somar(businessId, periodo),
       somar(businessId, anterior),
+      serieDeAcoes(businessId, periodo),
       prisma.auditSnapshot.findFirst({
         where: { businessId },
         orderBy: { createdAt: "desc" },
@@ -122,6 +146,15 @@ export async function montarDashboard(businessId: string, dias: number) {
       where: { category: "Prestador de serviço" },
     }));
 
+  const parametros = {
+    ticketMedio: negocio.ticketMedio,
+    taxaConversao: negocio.taxaConversaoManual,
+  };
+  const referencia = {
+    avgTicket: benchmark?.avgTicket ?? 300,
+    avgConversionRate: benchmark?.avgConversionRate ?? 0.25,
+  };
+
   const estimativas = calcularEstimativas(
     {
       ligacoes: atual.ligacoes,
@@ -129,14 +162,22 @@ export async function montarDashboard(businessId: string, dias: number) {
       cliquesNoSite: atual.cliquesNoSite,
     },
     atual.visualizacoes,
+    parametros,
+    referencia,
+  );
+
+  // As mesmas fórmulas sobre o período anterior. É o que permite dizer
+  // "receita perdida caiu 23%" sem inventar: os dois números saem da mesma
+  // conta, com os mesmos parâmetros, sobre janelas de tamanho igual.
+  const estimativasAnteriores = calcularEstimativas(
     {
-      ticketMedio: negocio.ticketMedio,
-      taxaConversao: negocio.taxaConversaoManual,
+      ligacoes: passado.ligacoes,
+      rotas: passado.rotas,
+      cliquesNoSite: passado.cliquesNoSite,
     },
-    {
-      avgTicket: benchmark?.avgTicket ?? 300,
-      avgConversionRate: benchmark?.avgConversionRate ?? 0.25,
-    },
+    passado.visualizacoes,
+    parametros,
+    referencia,
   );
 
   // Sem dado no período anterior não há comparação possível — a interface
@@ -167,7 +208,23 @@ export async function montarDashboard(businessId: string, dias: number) {
       media: avaliacoes._avg.starRating,
     },
     pendencias,
+    serie,
     estimativas,
+    estimativasAnteriores,
+    variacoesEstimadas: {
+      receitaAtual: variacao(
+        estimativas.receitaAtual,
+        estimativasAnteriores.receitaAtual,
+      ),
+      receitaPerdida: variacao(
+        estimativas.receitaPerdida,
+        estimativasAnteriores.receitaPerdida,
+      ),
+      clientesEstimados: variacao(
+        estimativas.clientesEstimados,
+        estimativasAnteriores.clientesEstimados,
+      ),
+    },
     benchmarkUsado: benchmark?.category ?? null,
     fonteBenchmark: benchmark?.source ?? null,
   };

@@ -40,6 +40,8 @@ export type Estimativas = {
   receitaPerdida: number;
   conversaoDoPerfil: number | null;
   conversaoDoSegmento: number;
+  /** Conversão do topo do segmento — o alvo que define a receita potencial. */
+  conversaoDoTopo: number;
   ticketUsado: number;
   taxaUsada: number;
   usouBenchmark: { ticket: boolean; taxa: boolean };
@@ -85,6 +87,7 @@ export function calcularEstimativas(
     // desempenho ruim onde na verdade não há dado.
     conversaoDoPerfil: visualizacoes > 0 ? acoesTotais / visualizacoes : null,
     conversaoDoSegmento: benchmark.avgConversionRate,
+    conversaoDoTopo: Math.min(taxaTopo, 1),
     ticketUsado,
     taxaUsada,
     usouBenchmark: {
