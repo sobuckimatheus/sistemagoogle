@@ -27,6 +27,24 @@ export type Limite = {
   janelaMinutos: number;
 };
 
+/**
+ * Limite configurável por ambiente.
+ *
+ * **`0` significa sem limite.** Existe para a fase de testes, em que a trava
+ * atrapalha quem está experimentando o produto — e não para produção aberta:
+ * com o limite anônimo desligado, a página pública fica sem defesa contra
+ * automação, e o custo passa a depender da boa vontade de quem acessa.
+ *
+ * Ao abrir para o público, remova as variáveis (voltando aos padrões) ou
+ * defina números explícitos.
+ */
+function doAmbiente(nome: string, padrao: number): number {
+  const bruto = process.env[nome];
+  if (!bruto?.trim()) return padrao;
+  const numero = Number(bruto);
+  return Number.isFinite(numero) && numero >= 0 ? numero : padrao;
+}
+
 /** Limites por recurso, no lugar onde dá para revisar todos de uma vez. */
 export const LIMITES = {
   /** SerpApi: 100 buscas/mês no plano grátis. 10/hora por conta já é folgado. */
@@ -46,10 +64,14 @@ export const LIMITES = {
    */
   autocompleteAnonimo: {
     recurso: "autocomplete-anon",
-    maximo: 30,
+    maximo: doAmbiente("LIMITE_ANONIMO_AUTOCOMPLETE", 30),
     janelaMinutos: 60,
   },
-  buscaAnonima: { recurso: "busca-anon", maximo: 5, janelaMinutos: 60 },
+  buscaAnonima: {
+    recurso: "busca-anon",
+    maximo: doAmbiente("LIMITE_ANONIMO_BUSCA", 5),
+    janelaMinutos: 60,
+  },
   /**
    * Teto global da página pública, somando todos os visitantes.
    *
@@ -63,7 +85,7 @@ export const LIMITES = {
    */
   buscaAnonimaGlobal: {
     recurso: "busca-anon-global",
-    maximo: 2000,
+    maximo: doAmbiente("LIMITE_ANONIMO_BUSCA_DIA", 2000),
     janelaMinutos: 1440,
   },
   /** Anthropic: custo por geração, e o usuário revisa cada texto de todo jeito. */
@@ -92,6 +114,12 @@ export async function consumirCota(
   limite: Limite,
   accountId: string,
 ): Promise<ResultadoCota> {
+  // Limite zerado libera sem gravar nada: registrar consumo que ninguém vai
+  // consultar seria escrever no banco a cada requisição por nada.
+  if (limite.maximo <= 0) {
+    return { permitido: true, restantes: Number.POSITIVE_INFINITY };
+  }
+
   const chave = `${limite.recurso}:${accountId}`;
   const inicioDaJanela = new Date(Date.now() - limite.janelaMinutos * 60_000);
 

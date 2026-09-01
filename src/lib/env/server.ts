@@ -51,6 +51,12 @@ const serverSchema = z.object({
   DATAFORSEO_AUTH: z.string().optional(),
   // Alvo geográfico e idioma, nos mesmos identificadores do Google.
   // Padrão: 2076 (Brasil) e 1014 (português).
+  // Limites da página isca. "0" desliga. Vazio usa o padrão do código.
+  // Ao abrir para o público, tire o zero — ver src/lib/rate-limit.ts.
+  LIMITE_ANONIMO_BUSCA: z.string().optional(),
+  LIMITE_ANONIMO_BUSCA_DIA: z.string().optional(),
+  LIMITE_ANONIMO_AUTOCOMPLETE: z.string().optional(),
+
   VOLUME_LOCATION_ID: z.string().optional(),
   VOLUME_LANGUAGE_ID: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
