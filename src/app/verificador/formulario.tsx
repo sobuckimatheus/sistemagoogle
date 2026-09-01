@@ -130,7 +130,7 @@ function Resultado({
 
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium uppercase tracking-wide text-neutral-500">
-            Sua posição na região
+            Sua posição média na região
           </span>
           <p className="text-5xl font-bold tabular-nums sm:text-6xl">
             {m.posicaoMedia ? `${m.posicaoMedia}º lugar` : "não aparece"}
@@ -153,18 +153,17 @@ function Resultado({
         </p>
 
         <p className="text-xs text-neutral-500">
-          Sua colocação entre os concorrentes, medindo todos nos mesmos{" "}
-          {m.totalPontos} pontos da sua região — a posição no Maps muda
-          conforme de onde a pessoa procura, e medir de um ponto só não diz
-          nada. Onde alguém não aparece entre os 20 primeiros, contamos como
-          21º. Pontos sem nenhum resultado, área sem esse tipo de negócio,
-          ficam de fora da conta.
+          Média das suas posições em {m.totalPontos} pontos espalhados pela sua
+          região — a posição no Maps muda conforme de onde a pessoa procura, e
+          medir de um ponto só não diz nada. Onde você não aparece entre os 20
+          primeiros, contamos como 21º. Pontos sem nenhum resultado, área sem
+          esse tipo de negócio, ficam de fora da conta.
         </p>
       </div>
 
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">
-          Ranking médio na sua região
+          O que o Google mostra a {m.kmDoPontoDaLista} km da sua empresa
         </h2>
         <ol className="flex flex-col gap-1.5 text-sm">
           {estado.medicao.ranking.slice(0, 10).map((r) => {
@@ -211,11 +210,10 @@ function Resultado({
           })}
         </ol>
         <p className="text-xs text-neutral-500">
-          Ordenado pela média de cada negócio nos mesmos {m.totalPontos} pontos
-          — a mesma conta do seu número acima, por isso sua posição aqui e lá
-          são a mesma. Quem fica em 1º num ponto e some nos outros termina
-          atrás de quem fica em 5º em todos, que é como o cliente da região de
-          fato encontra.
+          Busca real do Google, feita de um dos {m.totalPontos} pontos medidos
+          — escolhemos justamente aquele onde você está na sua posição média,
+          por isso o número acima é o mesmo que aparece aqui. Ordem exata
+          devolvida pelo Google, sem reordenação nossa.
         </p>
       </div>
 

@@ -172,18 +172,26 @@ cantos a 4,2 km) e calcula duas coisas:
 
 - **Visibilidade** — média de `(21 − posição) / 20` sobre os pontos onde há
   mercado; ausência conta zero.
-- **Posição na região** — a colocação do negócio no ranking regional: todos os
-  concorrentes recebem a média das posições deles nos mesmos 25 pontos, a
-  lista é ordenada por essa média e então numerada 1, 2, 3…
+- **Posição média** — média das posições nos 25 pontos, contando ausência como
+  21, exibida pelo piso: média 3,7 vira "3º", porque é onde o cliente o
+  encontra na maioria das buscas.
 
-**A manchete é a colocação na própria lista que a tela mostra** — literalmente
-o mesmo número, então não há como divergirem. Duas tentativas anteriores
-falharam nisso: a lista vinha de um ponto só (o negócio aparecia em 1º com
-manchete 14º), e depois exibia a média arredondada (várias linhas seguidas com
-"12º", como se fossem empate).
+**A lista abaixo do número é uma busca real do Google**, feita de um dos 25
+pontos — justamente aquele onde o negócio está na posição média dele. Assim os
+dois números são o mesmo fato, e a lista já vem com posições distintas, sem
+empate.
 
-A média com fração fica guardada no histórico, onde serve para comparar duas
-medições — entre 3,2 e 3,8 há progresso que o inteiro esconderia.
+Duas tentativas anteriores falharam aqui, e ambas por inventar um ranking
+agregado:
+
+1. A lista vinha do endereço do negócio, onde ele é sempre 1º — a tela dizia
+   "posição média 14º" acima de uma lista em que ele figurava em 1º.
+2. A lista passou a mostrar a média de cada concorrente, arredondada: saíam
+   várias linhas "12º, 12º, 12º" com cara de empate. E o ranking agregado é
+   **enviesado por construção** — o negócio analisado fica no centro da grade,
+   aparece em mais pontos que qualquer concorrente e vence sempre a média com
+   penalidade por ausência. Uma pizzaria ausente em sete pontos liderava com
+   14,6 contra 15,2 do segundo.
 
 Pontos onde o Google não devolve resultado nenhum ficam **fora da conta**:
 área sem esse tipo de negócio não é culpa de quem está sendo medido, e contar
