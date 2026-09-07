@@ -236,6 +236,96 @@ endereço do negócio analisado, onde ele é sempre primeiro —, e a tela dizia
 **Custo: US$ 0,05 por verificação** (25 × US$ 0,002). É o número a multiplicar
 antes de mexer no teto diário em `LIMITES`.
 
+## Auditoria do perfil
+
+`src/lib/auditoria.ts` dá nota 0–100 seguindo os três fatores que o Google
+publica para busca local — **relevância**, **distância** e **destaque** — e não
+uma lista de campos preenchidos. Um perfil 100% preenchido pode ranquear mal, e
+a auditoria precisa dizer isso em vez de dar nota cheia e calar.
+
+**Distância não entra na nota.** É o fator que mais pesa no Maps e o único que
+o dono não controla — o endereço é o que é. Pontuar distância faria a nota cair
+por algo que nenhuma ação corrige, e a nota existe para dizer o que fazer.
+
+A separação que importa:
+
+| | O que é | Peso |
+|---|---|---|
+| **Preenchimento** | campo vazio ou cheio; necessário, não suficiente | — |
+| **Competitividade** | se o que está preenchido resiste a quem já está à frente | onde a 1ª posição se decide |
+
+Por isso um campo pode estar preenchido e ainda perder pontos: descrição sem o
+termo que o cliente digita, uma categoria só enquanto o concorrente usa nove,
+40 avaliações contra 300 do vizinho. **A régua do volume é a mediana dos
+concorrentes**, não um número redondo: 40 avaliações é muito num bairro e pouco
+numa avenida, e só a comparação local distingue os dois casos. Mediana, não
+média, para que um concorrente gigante não desloque a régua sozinho.
+
+Relevância soma 46 e destaque 54 — destaque pesa mais porque é onde a disputa
+se decide entre perfis que já estão completos. Preencher campo tira o perfil do
+fim da lista; avaliação e atividade é o que passa na frente de quem também
+preencheu.
+
+**Sinal ausente é declarado, não silenciado.** Critério cujo dado o sync ainda
+não traz (horários, serviços e fotos, até a E6-01) entra como `indisponivel` e
+**sai do denominador** — não vira zero. Zerar o que não foi medido produz a
+mistura mais cara de uma auditoria: a mesma nota baixa para quem tem o problema
+e para quem só não teve o dado coletado. A versão anterior fazia isso com
+`temHorarios: false` fixo, e todo perfil perdia 18 pontos que nenhuma ação
+recuperava. `naoAvaliados` diz o que ficou de fora, e esses itens não viram
+tarefa no checklist — não há ação do usuário que resolva um dado que nós não
+coletamos.
+
+`notaPorFator()` devolve as notas separadas porque duas notas 70 contam
+histórias diferentes: quem perde em relevância mexe no perfil hoje; quem perde
+em destaque precisa de avaliações e constância, que são meses.
+
+## Postagens sugeridas
+
+O botão **Gerar postagem** propõe assunto, texto e imagem de uma vez. O assunto
+sai de `sugerirPostagem()` em `src/lib/ia.ts`, ancorado nas `Keyword` de maior
+volume do negócio — post sobre o que o cliente de fato busca liga a postagem ao
+ranqueamento, em vez de render mais um "confira nossas novidades". Os cinco
+posts mais recentes vão no prompt como assuntos a evitar, senão a sugestão
+repete o tema da semana.
+
+**Nada é publicado sozinho.** A ação sequer grava no banco: devolve rascunho
+para a tela, e o usuário edita texto, troca imagem e escolhe entre publicar,
+agendar ou salvar. É a mesma regra do resto da IA no produto.
+
+### A imagem vem do próprio perfil
+
+As fotos são as que o negócio já tem no Google (`src/lib/google/midia.ts`).
+É a melhor fonte possível, e por eliminação: já pertencem ao cliente, já
+retratam o estabelecimento dele e já estão hospedadas — sem upload, sem
+storage, sem filtro de licença.
+
+Uma tentativa anterior usou o Wikimedia Commons e foi removida. Dois motivos,
+ambos medidos:
+
+1. **As fotos não eram do negócio.** Buscar "barbearia" devolvia barbearias de
+   Lisboa e gravuras do século XIX. No card, ao lado das fotos reais do
+   estabelecimento, isso sinaliza abandono — o oposto do que a postagem
+   deveria comunicar.
+2. **A licença varia por arquivo, e o filtro sobrava pouco.** Só domínio
+   público e CC0 servem (as demais exigem crédito visível, e o card não tem
+   onde exibi-lo). Passavam de 1 a 4 arquivos em 30, em quatro categorias
+   reais testadas.
+
+Ficam de fora vídeos, fotos em retrato e abaixo de 400 px: o card as exibe
+cortadas ou borradas, e uma sugestão ruim custa mais que uma sugestão a menos.
+
+**A v4 tem allowlist próprio**, o mesmo das avaliações. Sem ela liberada, o
+bloco de fotos não aparece e a tela distingue "seu perfil não tem fotos em
+paisagem" de "não conseguimos ler suas fotos" — as duas pedem ações
+diferentes. Em qualquer um dos casos, restam o campo de URL e publicar sem
+imagem.
+
+O Google baixa a imagem da URL que gravamos (`sourceUrl` em
+`src/lib/google/posts.ts`), então `mediaUrl` precisa ser https público —
+validado no salvamento, porque falhar lá acontece longe e com mensagem
+obscura.
+
 ## Posição no Maps
 
 `src/lib/ranking/` escolhe a fonte, com a mesma ideia da camada de volume:
