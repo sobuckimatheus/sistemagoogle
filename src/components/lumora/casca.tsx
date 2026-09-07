@@ -90,7 +90,7 @@ export function itensDoNegocio(
     },
     {
       href: base("/checklist"),
-      rotulo: "Plano de ação",
+      rotulo: "Auditoria",
       icone: "checklist",
       contador: contagens.pendentes,
       desabilitado,
