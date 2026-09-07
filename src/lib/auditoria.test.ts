@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { auditar, oportunidades, type EntradaAuditoria } from "./auditoria";
+import {
+  auditar,
+  notaPorFator,
+  oportunidades,
+  type EntradaAuditoria,
+} from "./auditoria";
 
 const VAZIO: EntradaAuditoria = {
   primaryCategory: null,
@@ -16,12 +21,15 @@ const VAZIO: EntradaAuditoria = {
   notaMedia: null,
   avaliacoesRespondidas: 0,
   postagensUltimos30Dias: 0,
+  totalFotos: 0,
+  diasDesdeUltimaFoto: null,
+  avaliacoesUltimos90Dias: 0,
 };
 
 const COMPLETO: EntradaAuditoria = {
   primaryCategory: "Barbearia",
-  additionalCategories: ["Salão de beleza"],
-  description: "x".repeat(300),
+  additionalCategories: ["Salão de beleza", "Barbeiro", "Cabeleireiro"],
+  description: "Barbearia em São Paulo com corte masculino e barba.",
   phone: "+5511999999999",
   website: "https://exemplo.com",
   addressLine1: "Rua A, 100",
@@ -32,6 +40,10 @@ const COMPLETO: EntradaAuditoria = {
   notaMedia: 4.8,
   avaliacoesRespondidas: 78,
   postagensUltimos30Dias: 4,
+  totalFotos: 25,
+  diasDesdeUltimaFoto: 5,
+  avaliacoesUltimos90Dias: 8,
+  termosAlvo: ["barbearia", "corte masculino"],
 };
 
 describe("auditar", () => {
@@ -49,20 +61,6 @@ describe("auditar", () => {
 
   it("gera um item por critério, sempre", () => {
     expect(auditar(VAZIO).itens).toHaveLength(auditar(COMPLETO).itens.length);
-  });
-
-  it("categoria sem secundárias vale parcial, não zero", () => {
-    const so = auditar({ ...VAZIO, primaryCategory: "Barbearia" });
-    const item = so.itens.find((i) => i.area === "Categorias")!;
-    expect(item.pontuacao).toBeGreaterThan(0);
-    expect(item.pontuacao).toBeLessThan(1);
-    expect(item.status).toBe("atencao");
-  });
-
-  it("descrição curta pontua menos que descrição longa", () => {
-    const curta = auditar({ ...VAZIO, description: "oi" }).score;
-    const longa = auditar({ ...VAZIO, description: "x".repeat(300) }).score;
-    expect(longa).toBeGreaterThan(curta);
   });
 
   it("nota média abaixo de 3 não pontua", () => {
@@ -85,6 +83,148 @@ describe("auditar", () => {
     const semResposta = auditar(base).score;
     const comResposta = auditar({ ...base, avaliacoesRespondidas: 10 }).score;
     expect(comResposta).toBeGreaterThan(semResposta);
+  });
+
+  it("postar aumenta a nota", () => {
+    // Regressão: postagens eram coletadas pelo sync e nunca pontuadas.
+    const sem = auditar({ ...COMPLETO, postagensUltimos30Dias: 0 }).score;
+    const com = auditar({ ...COMPLETO, postagensUltimos30Dias: 4 }).score;
+    expect(com).toBeGreaterThan(sem);
+  });
+});
+
+describe("sinais indisponíveis", () => {
+  it("saem do denominador em vez de virarem zero", () => {
+    // Um perfil impecável cujo dado de horários não foi coletado continua
+    // valendo 100: a nota fala do que foi medido.
+    const semDado = auditar({
+      ...COMPLETO,
+      temHorarios: null,
+      temServicos: null,
+      totalFotos: null,
+    });
+    expect(semDado.score).toBe(100);
+    expect(semDado.naoAvaliados).toContain("Horário de funcionamento");
+    expect(semDado.pesoAvaliado).toBeLessThan(100);
+  });
+
+  it("distinguem 'não medido' de 'ausente'", () => {
+    const naoMedido = auditar({ ...COMPLETO, temHorarios: null });
+    const ausente = auditar({ ...COMPLETO, temHorarios: false });
+    expect(naoMedido.score).toBeGreaterThan(ausente.score);
+
+    const item = naoMedido.itens.find(
+      (i) => i.label === "Horário de funcionamento",
+    )!;
+    expect(item.status).toBe("indisponivel");
+    expect(item.peso).toBe(0);
+  });
+
+  it("não viram tarefa no checklist", () => {
+    // Não há ação do usuário que resolva um dado que nós não coletamos.
+    const { itens } = auditar({ ...VAZIO, temHorarios: null });
+    expect(
+      oportunidades(itens).some((i) => i.label === "Horário de funcionamento"),
+    ).toBe(false);
+  });
+});
+
+describe("competitividade", () => {
+  it("mede o volume contra os concorrentes, não contra número fixo", () => {
+    const base = { ...COMPLETO, totalAvaliacoes: 40 };
+    const bairro = auditar({
+      ...base,
+      concorrentes: [
+        { totalAvaliacoes: 30, notaMedia: 4.5 },
+        { totalAvaliacoes: 35, notaMedia: 4.6 },
+      ],
+    });
+    const avenida = auditar({
+      ...base,
+      concorrentes: [
+        { totalAvaliacoes: 300, notaMedia: 4.7 },
+        { totalAvaliacoes: 420, notaMedia: 4.8 },
+      ],
+    });
+
+    // As mesmas 40 avaliações: suficientes num bairro, pouco numa avenida.
+    expect(bairro.score).toBeGreaterThan(avenida.score);
+  });
+
+  it("usa mediana, para o concorrente gigante não distorcer a régua", () => {
+    const comOutlier = auditar({
+      ...COMPLETO,
+      totalAvaliacoes: 40,
+      concorrentes: [
+        { totalAvaliacoes: 30, notaMedia: 4.5 },
+        { totalAvaliacoes: 35, notaMedia: 4.5 },
+        { totalAvaliacoes: 5000, notaMedia: 4.5 },
+      ],
+    });
+    const item = comOutlier.itens.find((i) =>
+      i.label.startsWith("Volume de avaliações"),
+    )!;
+    // Mediana 35 < 40, então o critério está satisfeito apesar do gigante.
+    expect(item.pontuacao).toBe(1);
+  });
+
+  it("cobra os termos-alvo na descrição, não o comprimento", () => {
+    const comTermo = auditar({
+      ...COMPLETO,
+      description: "Barbearia com corte masculino no centro.",
+      termosAlvo: ["barbearia", "corte masculino"],
+    });
+    const longaSemTermo = auditar({
+      ...COMPLETO,
+      description: "x".repeat(700),
+      termosAlvo: ["barbearia", "corte masculino"],
+    });
+    expect(comTermo.score).toBeGreaterThan(longaSemTermo.score);
+  });
+
+  it("casa termo ignorando acento e caixa", () => {
+    const { itens } = auditar({
+      ...COMPLETO,
+      description: "SALAO de beleza e barbearia",
+      termosAlvo: ["salão de beleza"],
+    });
+    const item = itens.find((i) => i.label.startsWith("Termos-alvo"))!;
+    expect(item.pontuacao).toBe(1);
+  });
+
+  it("mede fluxo de avaliações, não só o acervo", () => {
+    const parado = auditar({
+      ...COMPLETO,
+      totalAvaliacoes: 300,
+      avaliacoesUltimos90Dias: 0,
+    });
+    const ativo = auditar({
+      ...COMPLETO,
+      totalAvaliacoes: 300,
+      avaliacoesUltimos90Dias: 8,
+    });
+    expect(ativo.score).toBeGreaterThan(parado.score);
+  });
+});
+
+describe("notaPorFator", () => {
+  it("separa relevância de destaque", () => {
+    // Perfil preenchido mas sem reputação: relevância alta, destaque baixo.
+    // As duas notas contam histórias diferentes, e o trabalho é outro.
+    const novo = auditar({
+      ...COMPLETO,
+      totalAvaliacoes: 0,
+      notaMedia: null,
+      avaliacoesRespondidas: 0,
+      avaliacoesUltimos90Dias: 0,
+      postagensUltimos30Dias: 0,
+      totalFotos: 0,
+    });
+    const fatores = notaPorFator(novo.itens);
+    const relevancia = fatores.find((f) => f.fator === "relevancia")!;
+    const destaque = fatores.find((f) => f.fator === "destaque")!;
+
+    expect(relevancia.score).toBeGreaterThan(destaque.score);
   });
 });
 

@@ -198,21 +198,48 @@ export async function rodarAuditoria(businessId: string): Promise<number> {
     where: { id: businessId },
   });
 
-  const [agregado, respondidas, postagens] = await Promise.all([
-    prisma.review.aggregate({
-      where: { businessId },
-      _count: true,
-      _avg: { starRating: true },
-    }),
-    prisma.review.count({ where: { businessId, replyText: { not: null } } }),
-    prisma.post.count({
-      where: {
-        businessId,
-        state: "PUBLISHED",
-        publishedAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
-      },
-    }),
-  ]);
+  const agora = Date.now();
+
+  const [agregado, respondidas, postagens, recentes, termos, concorrentes] =
+    await Promise.all([
+      prisma.review.aggregate({
+        where: { businessId },
+        _count: true,
+        _avg: { starRating: true },
+      }),
+      prisma.review.count({ where: { businessId, replyText: { not: null } } }),
+      prisma.post.count({
+        where: {
+          businessId,
+          state: "PUBLISHED",
+          publishedAt: { gte: new Date(agora - 30 * 24 * 3600 * 1000) },
+        },
+      }),
+      prisma.review.count({
+        where: {
+          businessId,
+          createTime: { gte: new Date(agora - 90 * 24 * 3600 * 1000) },
+        },
+      }),
+      prisma.keyword.findMany({
+        where: { businessId, active: true },
+        select: { term: true },
+        orderBy: { volume: "desc" },
+        take: 10,
+      }),
+      // O snapshot mais recente de cada concorrente é a régua da primeira
+      // posição: "quantas avaliações bastam" só tem resposta local.
+      prisma.competitor.findMany({
+        where: { businessId },
+        select: {
+          snapshots: {
+            orderBy: { capturedAt: "desc" },
+            take: 1,
+            select: { rating: true, reviewCount: true },
+          },
+        },
+      }),
+    ]);
 
   const entrada: EntradaAuditoria = {
     primaryCategory: negocio.primaryCategory,
@@ -222,14 +249,28 @@ export async function rodarAuditoria(businessId: string): Promise<number> {
     website: negocio.website,
     addressLine1: negocio.addressLine1,
     city: negocio.city,
-    // Horários e serviços ainda não são espelhados no banco (E6-01); por ora
-    // entram como ausentes, o que deprime a nota de forma conservadora.
-    temHorarios: false,
-    temServicos: false,
+    // Horários, serviços e fotos ainda não são espelhados no banco (E6-01).
+    // `null` os declara indisponíveis: eles saem do denominador em vez de
+    // virarem zero. Zerar puniria todo perfil por um dado que nós é que não
+    // coletamos — e a nota diria "seu perfil está mal" onde o certo é "não
+    // medimos isso ainda".
+    temHorarios: null,
+    temServicos: null,
+    totalFotos: null,
+    diasDesdeUltimaFoto: null,
     totalAvaliacoes: agregado._count,
     notaMedia: agregado._avg.starRating,
     avaliacoesRespondidas: respondidas,
     postagensUltimos30Dias: postagens,
+    avaliacoesUltimos90Dias: recentes,
+    termosAlvo: termos.map((t) => t.term),
+    concorrentes: concorrentes
+      .map((c) => c.snapshots[0])
+      .filter((s) => s !== undefined)
+      .map((s) => ({
+        totalAvaliacoes: s.reviewCount ?? 0,
+        notaMedia: s.rating,
+      })),
   };
 
   const { score, itens } = auditar(entrada);
