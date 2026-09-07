@@ -13,6 +13,13 @@ import { prisma } from "@/lib/prisma";
  *
  * Todo alerta é idempotente: rodar o sync duas vezes no mesmo dia não gera
  * duplicata. Alerta repetido é ruído, e ruído faz o usuário parar de olhar.
+ *
+ * **A central de alertas foi removida da interface, mas a geração continua.**
+ * Ela é a única coisa que avisa o cliente quando o sync quebra — token do
+ * Google revogado, negócio dias sem sincronizar. Sem isso os números
+ * congelariam na tela sem ninguém perceber, que é o pior modo de falha do
+ * produto. O alerta CRITICAL continua saindo por e-mail; os demais ficam
+ * gravados para diagnóstico e para quando a tela voltar.
  */
 
 /** Queda de nota média a partir da qual vale avisar. */
@@ -110,7 +117,9 @@ export async function notificarAlertaCritico(alertId: string): Promise<number> {
       alerta.message,
       "",
       `Negócio: ${alerta.business.title}`,
-      `Abra: ${clientEnv.NEXT_PUBLIC_APP_URL}/negocio/${alerta.business.id}/alertas`,
+      // A central de alertas foi removida da interface; o link vai ao painel
+      // do negócio, que é onde o efeito do problema aparece.
+      `Abra: ${clientEnv.NEXT_PUBLIC_APP_URL}/negocio/${alerta.business.id}`,
       "",
       "Para não receber mais estes e-mails, ajuste em Configurações da conta → Notificações.",
     ].join("\n"),

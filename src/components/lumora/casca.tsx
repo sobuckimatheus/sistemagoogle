@@ -45,10 +45,7 @@ export function CascaDoPainel({
  */
 export function itensDoNegocio(
   id: string | null,
-  contagens: { pendentes: number; naoLidos: number } = {
-    pendentes: 0,
-    naoLidos: 0,
-  },
+  contagens: { pendentes: number } = { pendentes: 0 },
 ): ItemDeNavegacao[] {
   const base = (sufixo: string) => (id ? `/negocio/${id}${sufixo}` : "#");
   const desabilitado = id === null;
@@ -96,13 +93,6 @@ export function itensDoNegocio(
       rotulo: "Plano de ação",
       icone: "checklist",
       contador: contagens.pendentes,
-      desabilitado,
-    },
-    {
-      href: base("/alertas"),
-      rotulo: "Alertas",
-      icone: "alerta",
-      contador: contagens.naoLidos,
       desabilitado,
     },
     {

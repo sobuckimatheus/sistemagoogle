@@ -19,8 +19,7 @@ export default async function NegocioLayout({
   const { id } = await params;
   const negocio = await exigirNegocioDaConta(id, conta.id);
 
-  const [naoLidos, pendentes, assinatura] = await Promise.all([
-    prisma.alert.count({ where: { businessId: id, readAt: null } }),
+  const [pendentes, assinatura] = await Promise.all([
     prisma.checklistItem.count({ where: { businessId: id, status: "OPEN" } }),
     prisma.subscription.findUnique({
       where: { accountId: conta.id },
@@ -30,7 +29,7 @@ export default async function NegocioLayout({
 
   return (
     <CascaDoPainel
-      itens={itensDoNegocio(id, { pendentes, naoLidos })}
+      itens={itensDoNegocio(id, { pendentes })}
       rodape={{
         negocio: negocio.title,
         plano: assinatura ? `Plano ${assinatura.plan.name}` : "Sem assinatura",
