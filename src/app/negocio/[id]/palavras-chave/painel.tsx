@@ -29,11 +29,14 @@ export function PainelPalavrasChave({
   palavras,
   limite,
   usadas,
+  sugestoesIniciais,
 }: {
   businessId: string;
   palavras: PalavraView[];
   limite: number;
   usadas: number;
+  /** Vêm prontas do servidor, do cache — ver `lib/keywords/sugestoes.ts`. */
+  sugestoesIniciais: { termo: string; jaAdicionado: boolean }[];
 }) {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
 
@@ -52,8 +55,13 @@ export function PainelPalavrasChave({
     FormData
   >(revalidarVolumes, null);
 
+  // A geração sob demanda sobrepõe as guardadas; sem clique, valem as que já
+  // vieram com a página. Termo já monitorado sai da lista: sugerir o que a
+  // pessoa já acompanha é ruído.
   const sugestoes =
-    estadoIa && "sugestoes" in estadoIa ? estadoIa.sugestoes : [];
+    estadoIa && "sugestoes" in estadoIa
+      ? estadoIa.sugestoes
+      : sugestoesIniciais.filter((s) => !s.jaAdicionado).map((s) => s.termo);
 
   const mensagem =
     (estadoAdd && "erro" in estadoAdd && estadoAdd.erro) ||
@@ -100,7 +108,11 @@ export function PainelPalavrasChave({
             disabled={sugerindo}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-neutral-700"
           >
-            {sugerindo ? "Pensando…" : "Sugerir com IA"}
+            {sugerindo
+              ? "Pensando…"
+              : sugestoesIniciais.length > 0
+                ? "Sugerir outras"
+                : "Sugerir com IA"}
           </button>
         </form>
 

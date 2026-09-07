@@ -1,5 +1,6 @@
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
 import { prisma } from "@/lib/prisma";
+import { sugestoesDoNegocio } from "@/lib/keywords/sugestoes";
 import { localidadeDoNegocio } from "@/lib/volume/localidade";
 
 import { PainelPalavrasChave, type PalavraView } from "./painel";
@@ -42,6 +43,10 @@ export default async function PalavrasChavePage({
     }),
     prisma.keyword.count({ where: { business: { accountId: conta.id } } }),
   ]);
+
+  // Geradas uma vez e guardadas: sem cache, cada abertura da tela custaria
+  // uma chamada de IA. Ver `src/lib/keywords/sugestoes.ts`.
+  const sugestoes = await sugestoesDoNegocio(negocio);
 
   const localidade = localidadeDoNegocio(negocio);
 
@@ -93,6 +98,7 @@ export default async function PalavrasChavePage({
         palavras={views}
         limite={assinatura?.plan.maxKeywords ?? 0}
         usadas={usadas}
+        sugestoesIniciais={sugestoes}
       />
     </main>
   );

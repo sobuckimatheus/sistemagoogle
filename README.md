@@ -130,6 +130,26 @@ O volume é buscado na criação do termo, por um botão manual e pelo job mensa
 `/api/cron/volume-keywords` — o Keyword Planner publica média mensal, então
 consultar com mais frequência gastaria operação para reescrever o mesmo número.
 
+### Dez sugestões prontas quando o painel abre
+
+A tela já chega com dez termos sugeridos para a categoria e a cidade do
+negócio. Eles são gerados **uma vez** e guardados em `keyword_suggestions`
+(`src/lib/keywords/sugestoes.ts`): sem cache, trazer a lista pronta custaria
+uma chamada à Anthropic a cada visita — e recarregar a página é visita.
+
+O contexto (categoria + cidade + UF) é gravado junto. Mudou no perfil, a
+sugestão vale para outro negócio e é regerada sozinha; "Sugerir outras"
+substitui o que está guardado, senão o botão geraria termos novos e a próxima
+abertura mostraria os antigos de volta.
+
+Termo que o negócio já acompanha sai da lista — sugerir o que a pessoa já
+monitora é ruído. A comparação normaliza caixa, porque "Barbearia Curitiba" e
+"barbearia curitiba" são o mesmo termo.
+
+Se a IA estiver fora ou sem chave, o painel abre igual e a lista vem vazia: a
+sugestão é acessório da tela, e derrubar a página por causa dela trocaria o
+essencial pelo acessório.
+
 ### O volume é sempre o da cidade do negócio
 
 "Barbearia" tem dezenas de milhares de buscas no Brasil e algumas centenas

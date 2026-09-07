@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { exigirContaAtiva, exigirNegocioDaConta } from "@/lib/auth/conta";
 import { bloqueioDeEscrita } from "@/lib/billing/assinatura";
 import { IaIndisponivelError, sugerirPalavrasChave } from "@/lib/ia";
+import { QUANTIDADE_SUGESTOES } from "@/lib/keywords/sugestoes";
 import { prisma } from "@/lib/prisma";
 import { consumirCota, LIMITES } from "@/lib/rate-limit";
 import { atualizarVolumes } from "@/lib/sync/volume";
@@ -116,7 +117,26 @@ export async function sugerirComIa(
     const sugestoes = await sugerirPalavrasChave(
       negocio.primaryCategory,
       negocio.city,
+      QUANTIDADE_SUGESTOES,
     );
+
+    // Substitui o que estava guardado: sem isto o botão geraria termos novos
+    // e a próxima abertura da tela mostraria os antigos de volta.
+    const contexto = [
+      negocio.primaryCategory,
+      negocio.city,
+      negocio.state,
+    ]
+      .map((p) => p?.trim().toLowerCase() ?? "")
+      .join("|");
+
+    await prisma.keywordSuggestion.deleteMany({ where: { businessId } });
+    await prisma.keywordSuggestion.createMany({
+      data: sugestoes.map((termo) => ({ businessId, term: termo, contexto })),
+      skipDuplicates: true,
+    });
+
+    revalidatePath(`/negocio/${businessId}/palavras-chave`);
     return { sugestoes };
   } catch (erro) {
     if (erro instanceof IaIndisponivelError) {

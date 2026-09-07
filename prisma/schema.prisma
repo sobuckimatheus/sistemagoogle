@@ -171,6 +171,7 @@ model Business {
   auditSnapshots   AuditSnapshot[]
   competitors      Competitor[]
   keywords         Keyword[]
+  keywordSuggestions KeywordSuggestion[]
   posts            Post[]
   checklistItems   ChecklistItem[]
   alerts           Alert[]
@@ -291,6 +292,28 @@ model Keyword {
   @@unique([businessId, term])
   @@index([businessId])
   @@map("keywords")
+}
+
+/**
+ * Sugestões de termo geradas por IA, guardadas para a tela abrir sem gerar.
+ *
+ * Sem isto, trazer as sugestões prontas no painel custaria uma chamada à
+ * Anthropic a cada visita — inclusive em recarregar a página. O conteúdo muda
+ * com a categoria e a cidade, que quase não mudam; gerar de novo em toda
+ * abertura pagaria por reescrever a mesma lista.
+ */
+model KeywordSuggestion {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  term       String
+  /** Categoria e cidade usadas na geração: mudou, a sugestão é regerada. */
+  contexto   String
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, term])
+  @@index([businessId])
+  @@map("keyword_suggestions")
 }
 
 enum RankCheckType {
