@@ -24,18 +24,23 @@ export type FonteDeVolume = {
    * Devolve uma entrada por termo pedido, na ordem original, mesmo quando não
    * há dado — quem chama precisa distinguir "não perguntamos" de "perguntamos
    * e não há dado", senão volume nulo vira retentativa eterna.
+   *
+   * `localidade` é o código de geo target do Google da **cidade do negócio**, e
+   * é obrigatório: volume nacional não é acionável para negócio local, e um
+   * padrão global faria todos os clientes receberem o mesmo número errado.
    */
-  buscar: (termos: string[]) => Promise<VolumeDeTermo[]>;
+  buscar: (termos: string[], localidade: number) => Promise<VolumeDeTermo[]>;
 };
 
 /**
- * Alvo geográfico e idioma padrão.
+ * Idioma padrão das consultas (language constant do Google).
  *
- * As duas fontes usam os mesmos identificadores do Google (geo target e
- * language constant), o que é coincidência feliz: o Mangools também é
- * alimentado por dados do Keyword Planner.
+ * As duas fontes usam os mesmos identificadores, o que é coincidência feliz:
+ * o Mangools também é alimentado por dados do Keyword Planner.
+ *
+ * Não há equivalente para localidade: ela vem da cidade do negócio, por
+ * requisição, e não tem padrão global de propósito.
  */
-export const BRASIL = 2076;
 export const PORTUGUES = 1014;
 
 /**

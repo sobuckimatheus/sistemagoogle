@@ -3,7 +3,6 @@ import "server-only";
 import { serverEnv } from "@/lib/env/server";
 import { fetchComRetry } from "@/lib/http";
 import {
-  BRASIL,
   idNumerico,
   PORTUGUES,
   type FonteDeVolume,
@@ -68,6 +67,7 @@ export function mangoolsConfigurado(): boolean {
 
 export async function volumePeloMangools(
   termos: string[],
+  localidade: number,
 ): Promise<VolumeDeTermo[]> {
   if (termos.length === 0) return [];
   if (!mangoolsConfigurado()) {
@@ -80,7 +80,7 @@ export async function volumePeloMangools(
     if (i > 0) await espera(PAUSA_ENTRE_LOTES_MS);
 
     const lote = termos.slice(i, i + TERMOS_POR_CHAMADA);
-    const dados = await pedirLote(lote);
+    const dados = await pedirLote(lote, localidade);
 
     const porTermo = new Map<string, VolumeDeTermo>();
     for (const item of dados.data ?? []) {
@@ -119,10 +119,13 @@ export async function volumePeloMangools(
  * Sem ler de lá, o backoff exponencial padrão (meio segundo, um segundo)
  * tentaria de novo antes da hora e só renovaria a punição.
  */
-async function pedirLote(lote: string[]): Promise<RespostaKwFinder> {
+async function pedirLote(
+  lote: string[],
+  localidade: number,
+): Promise<RespostaKwFinder> {
   const corpo = JSON.stringify({
     keywords: lote,
-    location_id: idNumerico(serverEnv.VOLUME_LOCATION_ID, BRASIL),
+    location_id: localidade,
     language_id: idNumerico(serverEnv.VOLUME_LANGUAGE_ID, PORTUGUES),
   });
 

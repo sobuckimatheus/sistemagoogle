@@ -15,6 +15,13 @@ export type PalavraView = {
   termo: string;
   volume: number | null;
   volumeAtualizadoEm: string | null;
+  /** Última medição de posição, quando já houve alguma. */
+  posicao: {
+    valor: number | null;
+    cobertura: number | null;
+    pontos: number;
+    medidoEm: string;
+  } | null;
 };
 
 export function PainelPalavrasChave({
@@ -195,6 +202,31 @@ export function PainelPalavrasChave({
                       ? `${p.volume.toLocaleString("pt-BR")} buscas/mês`
                       : "volume indisponível"}
                   </span>
+                  <span
+                    className="tabular-nums"
+                    title={
+                      p.posicao
+                        ? `Medido em ${p.posicao.medidoEm}` +
+                          (p.posicao.cobertura !== null
+                            ? ` · aparece em ${p.posicao.cobertura} de ${p.posicao.pontos} pontos`
+                            : "")
+                        : "Ainda não medido"
+                    }
+                  >
+                    {p.posicao?.valor != null ? (
+                      <>
+                        <strong>{Math.floor(p.posicao.valor)}º</strong>
+                        <span className="text-xs text-neutral-500">
+                          {" "}
+                          em {p.posicao.medidoEm}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-neutral-500">
+                        {p.posicao ? "fora do top 20" : "sem medição"}
+                      </span>
+                    )}
+                  </span>
                   <form action={removerPalavra}>
                     <input type="hidden" name="keywordId" value={p.id} />
                     <button className="text-xs text-neutral-500 underline">
@@ -213,6 +245,12 @@ export function PainelPalavrasChave({
           a conta do Ads com investimento ativo abre o número fechado; as
           demais fontes entregam valores arredondados. Termo sem volume
           continua valendo para o rastreamento de posição.
+        </p>
+        <p className="text-xs text-neutral-500">
+          A posição é a da última medição, não uma consulta feita agora: cada
+          verificação mede 25 pontos e é cobrada, então medir a cada abertura
+          da tela gastaria a cota para reescrever o mesmo número. Onde há
+          grade, o valor é a posição média nos pontos onde você aparece.
         </p>
       </section>
     </div>

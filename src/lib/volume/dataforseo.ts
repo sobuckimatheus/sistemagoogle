@@ -2,12 +2,7 @@ import "server-only";
 
 import { serverEnv } from "@/lib/env/server";
 import { fetchComRetry } from "@/lib/http";
-import {
-  BRASIL,
-  idNumerico,
-  type FonteDeVolume,
-  type VolumeDeTermo,
-} from "@/lib/volume/tipos";
+import { type FonteDeVolume, type VolumeDeTermo } from "@/lib/volume/tipos";
 
 /**
  * Volume de busca pela API do DataForSEO.
@@ -40,8 +35,8 @@ const TERMOS_POR_CHAMADA = 700;
 
 /**
  * O DataForSEO usa códigos ISO para idioma, e os mesmos códigos numéricos do
- * Google para localidade — por isso `VOLUME_LOCATION_ID` serve para as duas
- * fontes, mas o idioma precisa desta constante.
+ * Google para localidade — o mesmo código serve para as duas fontes, mas o
+ * idioma precisa desta constante.
  */
 const IDIOMA = "pt";
 
@@ -86,6 +81,7 @@ function autorizacao(): string {
 
 export async function volumePeloDataForSeo(
   termos: string[],
+  localidade: number,
 ): Promise<VolumeDeTermo[]> {
   if (termos.length === 0) return [];
   if (!dataForSeoConfigurado()) {
@@ -111,7 +107,7 @@ export async function volumePeloDataForSeo(
         body: JSON.stringify([
           {
             keywords: lote,
-            location_code: idNumerico(serverEnv.VOLUME_LOCATION_ID, BRASIL),
+            location_code: localidade,
             language_code: IDIOMA,
           },
         ]),

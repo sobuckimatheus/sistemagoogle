@@ -57,7 +57,6 @@ const serverSchema = z.object({
   LIMITE_ANONIMO_BUSCA_DIA: z.string().optional(),
   LIMITE_ANONIMO_AUTOCOMPLETE: z.string().optional(),
 
-  VOLUME_LOCATION_ID: z.string().optional(),
   VOLUME_LANGUAGE_ID: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),

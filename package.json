@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "stripe:precos": "tsx --env-file=.env scripts/precos-stripe.ts",
     "volume:testar": "tsx --env-file=.env scripts/testar-volume.ts",
+    "cidades:gerar": "tsx scripts/gerar-cidades.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.mts",

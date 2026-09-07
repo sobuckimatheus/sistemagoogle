@@ -130,6 +130,39 @@ O volume é buscado na criação do termo, por um botão manual e pelo job mensa
 `/api/cron/volume-keywords` — o Keyword Planner publica média mensal, então
 consultar com mais frequência gastaria operação para reescrever o mesmo número.
 
+### O volume é sempre o da cidade do negócio
+
+"Barbearia" tem dezenas de milhares de buscas no Brasil e algumas centenas
+numa cidade média. Quem escolhe termo pelo número nacional escolhe errado, e
+o erro só aparece meses depois, quando o tráfego não vem.
+
+A cidade sai do perfil vinculado no Google (`Business.city` / `state`), não de
+configuração — é o endereço que o próprio Google reconhece. `VOLUME_LOCATION_ID`
+**foi removida**: era um código único para todos os clientes, com padrão
+nacional, o que dava a todo mundo o mesmo número errado.
+
+`src/lib/volume/localidade.ts` resolve cidade + UF para o código de geo target,
+com duas armadilhas tratadas:
+
+- **Acento.** A lista do Google grava "Sao Paulo"; o GBP devolve "São Paulo".
+  Sem normalizar, toda cidade acentuada falharia — e falharia calada.
+- **Homônimos.** Doze nomes se repetem entre estados (Rio Claro em SP e RJ,
+  Palmas em TO e PR). Sem UF, só resolvemos nome único no país; o resto é
+  recusado em vez de chutado.
+
+**Cidade não reconhecida não é consultada.** Cair para o volume nacional
+devolveria um número que parece certo e não é — pior que não devolver nada,
+porque ninguém desconfia de campo preenchido. A tela avisa e pede conferência
+do endereço.
+
+Como cada chamada carrega uma localidade só, `atualizarVolumes` agrupa os
+termos por negócio antes de consultar: um lote misturando cidades diferentes
+daria a todas o número de uma delas.
+
+A lista de cidades fica em `src/lib/volume/dados/cidades-br.ts` (1309 cidades,
+arquivo gerado). `pnpm cidades:gerar` a regenera do CSV público do DataForSEO
+— o endpoint equivalente não é cobrado.
+
 ## Página isca (a raiz, e `/verificador`)
 
 **A raiz serve duas páginas.** Sem sessão é a isca; com sessão é o painel. A

@@ -21,7 +21,8 @@ import type { FonteDeVolume } from "@/lib/volume/tipos";
 const fonteGoogleAds: FonteDeVolume = {
   nome: "Google Ads (Keyword Planner)",
   configurada: googleAdsConfigurado,
-  buscar: (termos) => volumeDeBusca(termos),
+  buscar: (termos, localidade) =>
+    volumeDeBusca(termos, { geoTarget: `geoTargetConstants/${localidade}` }),
 };
 
 export function fonteDeVolume(): FonteDeVolume | null {
