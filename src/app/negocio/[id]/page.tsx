@@ -48,10 +48,6 @@ export default async function DashboardNegocio({
   const semDados = d.atual.visualizacoes === 0 && d.atual.ligacoes === 0;
 
   const { estimativas: e } = d;
-  // Sem ação nenhuma, receitaPerdida dá zero pela fórmula — e zero aqui
-  // significa "não há medição", não "converte acima do segmento". Tratar os
-  // dois como o mesmo caso faria a tela elogiar um perfil sem dado.
-  const semAcoes = e.acoesTotais === 0;
   // O último dia do intervalo é exclusivo na consulta; exibir o dia anterior
   // evita prometer um dia que ainda não fechou.
   const fimExibido = new Date(d.periodo.fim);
@@ -195,72 +191,75 @@ export default async function DashboardNegocio({
 
       {/* O bloco que o painel existe para entregar. */}
       <Cartao className="grid gap-8 p-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-10 lg:p-8">
-        <div className="grid gap-6 sm:grid-cols-2 sm:items-center">
-          <div className="flex flex-col gap-4">
-            <Rotulo dica="Estimativa a partir das suas ações de perfil, do seu ticket e do benchmark do segmento.">
-              Receita perdida
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <Rotulo dica="Os cinco termos de maior volume que você acompanha, com a posição medida na última verificação.">
+              Suas palavras-chave
             </Rotulo>
-            <p className="max-w-[15ch] font-serif text-[34px] leading-[1.15] text-texto">
-              {semAcoes ? (
-                <>
-                  Ainda não há{" "}
-                  <span className="whitespace-nowrap text-texto-suave">
-                    o que estimar
-                  </span>{" "}
-                  no período.
-                </>
-              ) : e.receitaPerdida > 0 ? (
-                <>
-                  Você está deixando{" "}
-                  <span className="whitespace-nowrap text-baixa">
-                    dinheiro na mesa
-                  </span>{" "}
-                  todo mês.
-                </>
-              ) : (
-                <>
-                  Seu perfil já converte{" "}
-                  <span className="text-alta">acima do segmento</span>.
-                </>
-              )}
-            </p>
-            <Link
-              href="/como-calculamos"
-              className="flex w-fit items-center gap-2 rounded-lg border border-borda px-3 py-2 text-sm text-texto-suave transition-colors hover:bg-superficie-alta hover:text-texto"
-            >
-              <Icone nome="info" className="size-4" />
-              Entenda como calculamos isso
-            </Link>
-          </div>
-
-          <div className="flex flex-col items-start gap-2 sm:items-center sm:text-center">
-            <p className="text-xs uppercase tracking-[0.12em] text-texto-fraco">
-              Estimativa em {dias} dias
-            </p>
-            <p
-              className={`numero text-[44px] font-semibold leading-none ${
-                semAcoes
-                  ? "text-texto-fraco"
-                  : e.receitaPerdida > 0
-                    ? "text-baixa"
-                    : "text-alta"
-              }`}
-            >
-              {semAcoes ? "—" : dinheiro.format(e.receitaPerdida)}
-            </p>
-            {semAcoes ? (
-              <p className="max-w-[28ch] text-xs leading-relaxed text-texto-fraco">
-                Nenhuma ligação, rota ou clique no site foi registrada. A
-                estimativa depende delas.
+            {d.cidadeDoVolume && (
+              <p className="text-xs text-texto-fraco">
+                Buscas por mês em {d.cidadeDoVolume}
               </p>
-            ) : (
-              <Variacao
-                valor={d.variacoesEstimadas.receitaPerdida}
-                temHistorico={d.temHistorico}
-                bomQuandoSobe={false}
-              />
             )}
           </div>
+
+          {d.palavrasChave.length === 0 ? (
+            <div className="flex flex-col items-start gap-3">
+              <p className="max-w-[30ch] font-serif text-[26px] leading-[1.2] text-texto">
+                Escolha os termos pelos quais você quer{" "}
+                <span className="text-ouro">ser encontrado</span>.
+              </p>
+              <Link
+                href={`/negocio/${id}/palavras-chave`}
+                className="flex w-fit items-center gap-1.5 text-sm text-ouro transition-colors hover:text-ouro-claro"
+              >
+                Adicionar palavras-chave
+                <Icone nome="seta" className="size-4" />
+              </Link>
+            </div>
+          ) : (
+            <>
+              <ul className="flex flex-col divide-y divide-borda">
+                {d.palavrasChave.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0"
+                  >
+                    <span className="truncate text-sm text-texto">
+                      {p.termo}
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-5">
+                      <span className="numero text-sm text-texto-suave tabular-nums">
+                        {p.volume !== null
+                          ? `${numero.format(p.volume)}/mês`
+                          : "—"}
+                      </span>
+                      <span
+                        className={`numero w-14 text-right text-lg font-semibold tabular-nums ${
+                          p.posicao === null
+                            ? "text-texto-fraco"
+                            : p.posicao <= 3
+                              ? "text-alta"
+                              : p.posicao <= 10
+                                ? "text-atencao"
+                                : "text-baixa"
+                        }`}
+                      >
+                        {p.posicao !== null ? `${Math.floor(p.posicao)}º` : "—"}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={`/negocio/${id}/palavras-chave`}
+                className="flex w-fit items-center gap-1.5 text-sm text-ouro transition-colors hover:text-ouro-claro"
+              >
+                Ver todas as palavras-chave
+                <Icone nome="seta" className="size-4" />
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-4 lg:border-l lg:border-borda lg:pl-10">

@@ -289,6 +289,24 @@ endereço do negócio analisado, onde ele é sempre primeiro —, e a tela dizia
 **Custo: US$ 0,05 por verificação** (25 × US$ 0,002). É o número a multiplicar
 antes de mexer no teto diário em `LIMITES`.
 
+## O destaque do dashboard são as palavras-chave
+
+O bloco principal do painel mostra os cinco termos de maior volume do negócio,
+com as buscas por mês na cidade dele e a posição medida em cada um. Antes ali
+ficava a receita perdida estimada.
+
+A troca é sobre o que o número vale. Receita estimada é ticket médio ×
+benchmark de segmento × ações do perfil: três aproximações multiplicadas, com
+aparência de precisão que o dado não tem. Volume e posição são medidos — um
+vem do Keyword Planner, o outro de busca real no Maps.
+
+As estimativas financeiras continuam existindo no card de desempenho, onde
+estão rotuladas como estimativa e acompanhadas do "como calculamos". O que
+saiu foi a promoção delas a manchete.
+
+Termo sem volume ou sem medição aparece com "—", nunca com zero: não medido e
+medido-como-zero são coisas diferentes, e a segunda seria mentira.
+
 ## Auditoria do perfil
 
 `src/lib/auditoria.ts` dá nota 0–100 seguindo os três fatores que o Google

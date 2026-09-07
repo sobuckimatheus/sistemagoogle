@@ -2,6 +2,7 @@ import "server-only";
 
 import { calcularEstimativas, variacao } from "@/lib/estimativas";
 import { prisma } from "@/lib/prisma";
+import { localidadeDoNegocio } from "@/lib/volume/localidade";
 
 /**
  * Agregação do dashboard.
@@ -121,7 +122,7 @@ export async function montarDashboard(businessId: string, dias: number) {
       }),
     ]);
 
-  const [avaliacoes, pendencias] = await Promise.all([
+  const [avaliacoes, pendencias, termos] = await Promise.all([
     prisma.review.aggregate({
       where: { businessId },
       _count: true,
@@ -131,6 +132,21 @@ export async function montarDashboard(businessId: string, dias: number) {
       where: { businessId, status: "OPEN" },
       orderBy: [{ priority: "asc" }, { generatedAt: "desc" }],
       take: 5,
+    }),
+    // Os cinco de maior volume: são os que mais movem o resultado, e o
+    // dashboard tem espaço para poucos. `nulls: "last"` mantém o termo ainda
+    // não consultado no fim, em vez de no topo por acaso da ordenação.
+    prisma.keyword.findMany({
+      where: { businessId, active: true },
+      orderBy: { volume: { sort: "desc", nulls: "last" } },
+      take: 5,
+      include: {
+        rankChecks: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { avgPosition: true, myPosition: true, createdAt: true },
+        },
+      },
     }),
   ]);
 
@@ -208,6 +224,21 @@ export async function montarDashboard(businessId: string, dias: number) {
       media: avaliacoes._avg.starRating,
     },
     pendencias,
+    // Volume e posição por termo. Substituem a receita estimada no destaque
+    // do painel: são medidos, não inferidos de ticket e benchmark.
+    palavrasChave: termos.map((t) => {
+      const medicao = t.rankChecks[0];
+      return {
+        id: t.id,
+        termo: t.term,
+        volume: t.volume,
+        // A média é o número honesto numa grade; `myPosition` cobre a medição
+        // de ponto único, que não tem média.
+        posicao: medicao ? (medicao.avgPosition ?? medicao.myPosition) : null,
+        medidoEm: medicao?.createdAt ?? null,
+      };
+    }),
+    cidadeDoVolume: localidadeDoNegocio(negocio)?.rotulo ?? null,
     serie,
     estimativas,
     estimativasAnteriores,
