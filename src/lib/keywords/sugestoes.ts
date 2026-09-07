@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sugerirPalavrasChave } from "@/lib/ia";
+import { IaIndisponivelError, sugerirPalavrasChave } from "@/lib/ia";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -21,6 +21,24 @@ export type Sugestao = {
   termo: string;
   /** Verdadeiro quando o termo já está na lista de acompanhamento. */
   jaAdicionado: boolean;
+};
+
+/**
+ * Por que a lista veio vazia, quando vier.
+ *
+ * Existe porque devolver `[]` calado é indistinguível de "não há o que
+ * sugerir": quem abre a tela vê o painel como antes e não tem como saber que
+ * falta uma chave ou um campo do perfil. Cada motivo pede uma ação diferente.
+ */
+export type MotivoSemSugestoes =
+  | "sem-categoria"
+  | "sem-cidade"
+  | "ia-indisponivel"
+  | "falhou";
+
+export type ResultadoSugestoes = {
+  sugestoes: Sugestao[];
+  motivo: MotivoSemSugestoes | null;
 };
 
 /** Categoria e cidade que valem para esta geração. */
@@ -47,10 +65,11 @@ export async function sugestoesDoNegocio(negocio: {
   primaryCategory: string | null;
   city: string | null;
   state: string | null;
-}): Promise<Sugestao[]> {
+}): Promise<ResultadoSugestoes> {
   // Sem categoria ou cidade não há o que sugerir: os dois são o insumo do
   // prompt, e chutar renderia termo genérico que não serve para ninguém.
-  if (!negocio.primaryCategory || !negocio.city) return [];
+  if (!negocio.primaryCategory) return { sugestoes: [], motivo: "sem-categoria" };
+  if (!negocio.city) return { sugestoes: [], motivo: "sem-cidade" };
 
   const contexto = contextoDe(negocio);
 
@@ -69,10 +88,13 @@ export async function sugestoesDoNegocio(negocio: {
   const jaTem = new Set(existentes.map((k) => k.term.trim().toLowerCase()));
 
   if (guardadas.length > 0) {
-    return guardadas.map((s) => ({
-      termo: s.term,
-      jaAdicionado: jaTem.has(s.term.trim().toLowerCase()),
-    }));
+    return {
+      sugestoes: guardadas.map((s) => ({
+        termo: s.term,
+        jaAdicionado: jaTem.has(s.term.trim().toLowerCase()),
+      })),
+      motivo: null,
+    };
   }
 
   let termos: string[];
@@ -82,11 +104,16 @@ export async function sugestoesDoNegocio(negocio: {
       negocio.city,
       QUANTIDADE_SUGESTOES,
     );
-  } catch {
-    return [];
+  } catch (erro) {
+    // Sem chave é o caso comum em ambiente recém-configurado, e é acionável:
+    // a tela diz o que falta em vez de mostrar um painel vazio sem motivo.
+    return {
+      sugestoes: [],
+      motivo: erro instanceof IaIndisponivelError ? "ia-indisponivel" : "falhou",
+    };
   }
 
-  if (termos.length === 0) return [];
+  if (termos.length === 0) return { sugestoes: [], motivo: "falhou" };
 
   // O contexto antigo sai junto: guardar as duas gerações encheria a tabela
   // com sugestões de uma cidade que o negócio não tem mais.
@@ -96,8 +123,11 @@ export async function sugestoesDoNegocio(negocio: {
     skipDuplicates: true,
   });
 
-  return termos.map((termo) => ({
-    termo,
-    jaAdicionado: jaTem.has(termo.trim().toLowerCase()),
-  }));
+  return {
+    sugestoes: termos.map((termo) => ({
+      termo,
+      jaAdicionado: jaTem.has(termo.trim().toLowerCase()),
+    })),
+    motivo: null,
+  };
 }

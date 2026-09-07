@@ -30,6 +30,7 @@ export function PainelPalavrasChave({
   limite,
   usadas,
   sugestoesIniciais,
+  motivoSemSugestoes,
 }: {
   businessId: string;
   palavras: PalavraView[];
@@ -37,6 +38,13 @@ export function PainelPalavrasChave({
   usadas: number;
   /** Vêm prontas do servidor, do cache — ver `lib/keywords/sugestoes.ts`. */
   sugestoesIniciais: { termo: string; jaAdicionado: boolean }[];
+  /** Por que a lista veio vazia; nulo quando veio cheia. */
+  motivoSemSugestoes:
+    | "sem-categoria"
+    | "sem-cidade"
+    | "ia-indisponivel"
+    | "falhou"
+    | null;
 }) {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
 
@@ -115,6 +123,18 @@ export function PainelPalavrasChave({
                 : "Sugerir com IA"}
           </button>
         </form>
+
+        {sugestoes.length === 0 && motivoSemSugestoes && (
+          <p className="text-xs text-neutral-500">
+            {motivoSemSugestoes === "ia-indisponivel"
+              ? "As sugestões automáticas precisam da ANTHROPIC_API_KEY configurada. Sem ela, adicione os termos à mão no campo acima."
+              : motivoSemSugestoes === "sem-categoria"
+                ? "Para sugerir termos preciso da categoria do negócio — ela chega no sync do perfil do Google."
+                : motivoSemSugestoes === "sem-cidade"
+                  ? "Para sugerir termos preciso da cidade do negócio — ela chega no sync do perfil do Google."
+                  : "Não consegui gerar sugestões agora. Tente de novo em instantes ou adicione os termos à mão."}
+          </p>
+        )}
 
         {sugestoes.length > 0 && (
           <form action={acaoAdd} className="flex flex-col gap-3">

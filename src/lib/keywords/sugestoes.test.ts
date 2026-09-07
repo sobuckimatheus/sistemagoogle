@@ -11,7 +11,8 @@ const prisma = {
 };
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/ia", () => ({ sugerirPalavrasChave }));
+class IaIndisponivelError extends Error {}
+vi.mock("@/lib/ia", () => ({ sugerirPalavrasChave, IaIndisponivelError }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
 const { sugestoesDoNegocio, QUANTIDADE_SUGESTOES } = await import("./sugestoes");
@@ -47,7 +48,10 @@ describe("sugestoesDoNegocio", () => {
     ]);
     const r = await sugestoesDoNegocio(NEGOCIO);
     expect(sugerirPalavrasChave).not.toHaveBeenCalled();
-    expect(r).toEqual([{ termo: "barbearia curitiba", jaAdicionado: false }]);
+    expect(r.sugestoes).toEqual([
+      { termo: "barbearia curitiba", jaAdicionado: false },
+    ]);
+    expect(r.motivo).toBeNull();
   });
 
   it("guarda o que gerou, para a próxima abertura não gerar de novo", async () => {
@@ -75,7 +79,7 @@ describe("sugestoesDoNegocio", () => {
     prisma.keyword.findMany.mockResolvedValue([{ term: "barbearia curitiba" }]);
 
     const r = await sugestoesDoNegocio(NEGOCIO);
-    expect(r).toEqual([
+    expect(r.sugestoes).toEqual([
       { termo: "Barbearia Curitiba", jaAdicionado: true },
       { termo: "corte masculino", jaAdicionado: false },
     ]);
@@ -96,16 +100,39 @@ describe("sugestoesDoNegocio", () => {
     expect(sugerirPalavrasChave).toHaveBeenCalled();
   });
 
-  it("não sugere sem categoria ou cidade", async () => {
-    // São o insumo do prompt; chutar renderia termo genérico inútil.
-    expect(await sugestoesDoNegocio({ ...NEGOCIO, primaryCategory: null })).toEqual([]);
-    expect(await sugestoesDoNegocio({ ...NEGOCIO, city: null })).toEqual([]);
+  it("não sugere sem categoria ou cidade, e diz qual falta", async () => {
+    // São o insumo do prompt; chutar renderia termo genérico inútil. O motivo
+    // é o que permite a tela pedir a coisa certa.
+    const semCategoria = await sugestoesDoNegocio({
+      ...NEGOCIO,
+      primaryCategory: null,
+    });
+    const semCidade = await sugestoesDoNegocio({ ...NEGOCIO, city: null });
+
+    expect(semCategoria).toEqual({ sugestoes: [], motivo: "sem-categoria" });
+    expect(semCidade).toEqual({ sugestoes: [], motivo: "sem-cidade" });
     expect(sugerirPalavrasChave).not.toHaveBeenCalled();
   });
 
-  it("devolve lista vazia quando a IA falha, sem derrubar a página", async () => {
+  it("distingue falta de chave de falha genérica", async () => {
+    // Devolver [] calado é indistinguível de "não há o que sugerir": o painel
+    // abriria vazio e ninguém saberia que falta a ANTHROPIC_API_KEY.
+    sugerirPalavrasChave.mockRejectedValue(new IaIndisponivelError("sem chave"));
+    expect(await sugestoesDoNegocio(NEGOCIO)).toEqual({
+      sugestoes: [],
+      motivo: "ia-indisponivel",
+    });
+
+    sugerirPalavrasChave.mockRejectedValue(new Error("timeout"));
+    expect(await sugestoesDoNegocio(NEGOCIO)).toEqual({
+      sugestoes: [],
+      motivo: "falhou",
+    });
+  });
+
+  it("não derruba a página quando a IA falha", async () => {
     // A sugestão é acessório da tela; o painel precisa abrir mesmo sem ela.
     sugerirPalavrasChave.mockRejectedValue(new Error("sem chave"));
-    await expect(sugestoesDoNegocio(NEGOCIO)).resolves.toEqual([]);
+    await expect(sugestoesDoNegocio(NEGOCIO)).resolves.toBeDefined();
   });
 });

@@ -46,7 +46,8 @@ export default async function PalavrasChavePage({
 
   // Geradas uma vez e guardadas: sem cache, cada abertura da tela custaria
   // uma chamada de IA. Ver `src/lib/keywords/sugestoes.ts`.
-  const sugestoes = await sugestoesDoNegocio(negocio);
+  const { sugestoes, motivo: motivoSemSugestoes } =
+    await sugestoesDoNegocio(negocio);
 
   const localidade = localidadeDoNegocio(negocio);
 
@@ -99,6 +100,7 @@ export default async function PalavrasChavePage({
         limite={assinatura?.plan.maxKeywords ?? 0}
         usadas={usadas}
         sugestoesIniciais={sugestoes}
+        motivoSemSugestoes={motivoSemSugestoes}
       />
     </main>
   );
